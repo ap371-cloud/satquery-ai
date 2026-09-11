@@ -315,11 +315,19 @@ class SpecialistRegistry:
                 gemini = GeminiVisionAdapter()
         except Exception:
             gemini = None
-        self.vlm = gemini if gemini else TEOChatAdapter()
-        self.sar_vlm = gemini if gemini else SARChatAdapter()
+        florence = None
+        try:
+            from .local_vlm import LocalFlorenceAdapter
+            fa = LocalFlorenceAdapter()
+            if fa.enabled:
+                florence = fa
+        except Exception:
+            florence = None
+        self.vlm = gemini if gemini else (florence if florence else TEOChatAdapter())
+        self.sar_vlm = gemini if gemini else (florence if florence else SARChatAdapter())
         self.segmenter = SamGeoAdapter()
         self.change = OpenCDAdapter()
-        self.large_vlm = gemini if gemini else LargeRSVQAAdapter()
+        self.large_vlm = gemini if gemini else (florence if florence else LargeRSVQAAdapter())
         self.multimodal = TerraMindAdapter()
 
     def health(self) -> Dict[str, Any]:

@@ -459,13 +459,17 @@ function FieldLabel({ children }) {
   return <label className="field-label">{children}</label>
 }
 
+function previewSrc(dataset, fallback = '') {
+  return dataset?.preview_b64 || (dataset?.preview_url ? apiUrl(dataset.preview_url) : fallback) || ''
+}
+
 function InputImageCard({ dataset, busy, onFile, onClear, label }) {
   const ref = useRef(null)
   return (
     <div className={`image-input-card ${dataset ? 'has-image' : ''}`}>
       {dataset ? (
         <>
-          <img src={apiUrl(dataset.preview_url)} alt={dataset.filename}/>
+          <img src={previewSrc(dataset)} alt={dataset.filename}/>
           <div className="image-card-overlay">
             <div><b>{label}</b><span>{dataset.filename}</span></div>
             <button onClick={onClear} title="Remove"><X size={15}/></button>
@@ -501,7 +505,7 @@ function CompareInput({ dataset, busy, onFile, onClear }) {
   }
   return (
     <div className="compare-mini">
-      <img src={apiUrl(dataset.preview_url)} alt={dataset.filename}/>
+      <img src={previewSrc(dataset)} alt={dataset.filename}/>
       <div><small>Comparison / later image</small><b>{dataset.filename}</b><span>{formatMeta(dataset).join(' · ')}</span></div>
       <button onClick={onClear}><X size={15}/></button>
     </div>
@@ -514,7 +518,7 @@ function DatasetLibrary({ datasets, primaryId, compareId, onPrimary, onCompare }
       <div className="library-head"><b>Existing datasets</b><span>{datasets.length} available</span></div>
       {datasets.length === 0 ? <div className="library-empty">No uploaded datasets yet.</div> : datasets.map(d => (
         <div className="library-row" key={d.id}>
-          <img src={apiUrl(d.preview_url)} alt=""/>
+          <img src={previewSrc(d)} alt=""/>
           <div><b>{d.filename}</b><small>{formatMeta(d).join(' · ')}</small></div>
           <div className="library-actions">
             <button className={primaryId === d.id ? 'selected' : ''} onClick={() => onPrimary(d.id)}>Earlier</button>
@@ -574,7 +578,7 @@ function ExecutionTrace({ status, result }) {
 
 function OutputPanel({ result, primary, running }) {
   const [tab, setTab] = useState('map')
-  const src = result?.overlay_b64 || (result?.overlay_url ? apiUrl(result.overlay_url) : primary?.preview_url ? apiUrl(primary.preview_url) : null)
+  const src = result?.overlay_b64 || (result?.overlay_url ? apiUrl(result.overlay_url) : previewSrc(primary, null))
   const geojsonHref = result?.geojson ? 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(result.geojson)) : (result?.geojson_url ? apiUrl(result.geojson_url) : null)
   const mapReady = Boolean(result?.map_context?.bounds_wgs84)
   useEffect(() => { if (!mapReady && tab === 'map') setTab('image') }, [mapReady, tab])

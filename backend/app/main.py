@@ -763,7 +763,13 @@ async def upload_dataset(file: UploadFile = File(...), modality: str = Form('aut
         inferred = 'sar' if 'sar' in n or 'sentinel-1' in n or 's1_' in n or md.get('count') == 2 else 'optical'
     with db() as con:
         con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, file.filename, str(dest), str(preview), inferred, json.dumps(md), now()))
-    return dataset_row(get_dataset(did))
+    row = dataset_row(get_dataset(did))
+    if row:
+        try:
+            row['preview_b64'] = 'data:image/png;base64,' + base64.b64encode(preview.read_bytes()).decode('ascii')
+        except Exception:
+            pass
+    return row
 
 
 @app.get('/api/v1/datasets/{did}/preview')
@@ -771,7 +777,16 @@ def dataset_preview(did: str):
     row = get_dataset(did)
     if not row:
         raise HTTPException(404, 'Dataset not found')
-    return FileResponse(row['preview_path'], media_type='image/png')
+    p = Path(row['preview_path'])
+    if not p.exists() and Path(row['path']).exists():
+        try:
+            PREVIEWS.mkdir(parents=True, exist_ok=True)
+            make_preview(Path(row['path']), p)
+        except Exception:
+            pass
+    if not p.exists():
+        raise HTTPException(404, 'Preview image is not ready')
+    return FileResponse(p, media_type='image/png')
 
 
 @app.delete('/api/v1/datasets/{did}')
@@ -792,7 +807,7 @@ def create_analysis(inp: AnalysisIn):
         raise HTTPException(400, 'Query is required')
     for did in inp.dataset_ids:
         if not get_dataset(did):
-            raise HTTPException(404, f'Dataset {did} not found')
+            raise HTTPException(404, f'Dataset {did} is not available on this runtime instance. Re-select imagery from the library or re-upload it, then try again.')
     if not inp.dataset_ids:
         context = parse_query(inp.query, 0)
         if not context.get('can_auto_retrieve'):
