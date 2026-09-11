@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, Check, CheckCircle2, ChevronDown, Copy, Database,
   Download, FileJson, Image as ImageIcon, Layers3, LoaderCircle, Map as MapIcon, Orbit,
   Play, Plus, Radio, RotateCcw, Satellite, Settings2, Sparkles, Terminal,
-  Upload, X, Zap, CloudDownload, Cpu, ShieldCheck, Gauge
+  Upload, X, Zap, CloudDownload, Cpu, ShieldCheck, Gauge, Lightbulb
 } from 'lucide-react'
 import { api, apiUrl, uploadDataset } from './api.js'
 import GeoEvidenceMap from './GeoEvidenceMap.jsx'
@@ -132,6 +132,112 @@ function QueryContext({ context }) {
       {context.supported === false && <span className="unsupported-chip"><AlertTriangle size={12}/>Unsupported in current build</span>}
     </div>
   )
+}
+
+function yearOf(dataset) {
+  if (!dataset) return null
+  const m = dataset.metadata || {}
+  const fromMeta = (m.acquired_at || '').match(/(20\d\d)/) || (m.period_label || '').match(/(20\d\d)/)
+  if (fromMeta) return fromMeta[1]
+  const fromName = (dataset.filename || '').match(/(20\d\d)/)
+  return fromName ? fromName[1] : null
+}
+
+function suggestFor(primary, compare, dataset) {
+  if (!primary) return []
+  const pM = primary.modality || ''
+  const cM = compare?.modality || ''
+  const py = yearOf(primary)
+  const cy = yearOf(compare)
+  const isAssam = /(assam|guwahati|brahmaputra)/i.test(`${primary.filename || ''} ${compare?.filename || ''}`)
+  const isIndore = /indore/i.test(`${primary.filename || ''} ${compare?.filename || ''}`)
+  const hasPlace = isAssam ? 'Assam' : isIndore ? 'Indore' : ''
+  const items = []
+  const push = (label, query) => {
+    if (query) items.push({ label, query })
+  }
+  if (pM === 'sar' && cM === 'sar') {
+    const place = hasPlace ? `around ${hasPlace}` : 'in this area'
+    push('Flood / water compare', `Show flooded areas ${place} and highlight what changed between these two SAR scenes.`)
+    push('Radar change detection', 'What changed between these two SAR images? Highlight significant radar differences.')
+    push('Water presence', 'Is there standing water or flooding visible in the earlier SAR image?')
+  } else if (pM === 'optical' && cM === 'optical' && py && cy && py !== cy) {
+    push('Urban growth', 'Show where urban construction changed between these two dates.')
+    push('Vegetation loss', 'Where was vegetation lost between these two images?')
+    push('Temporal visual', 'What are the most important visible differences between these two satellite images?')
+  } else if (pM === 'optical' && cM === 'optical') {
+    push('Land cover', 'Describe the major land-cover patterns visible in this image.')
+    push('Buildings', 'Highlight all buildings in this image.')
+    push('Water check', 'Is there any visible water or flooding in this image?')
+  } else if ((pM === 'optical' && cM === 'sar') || (pM === 'sar' && cM === 'optical')) {
+    push('Optical + SAR fusion', 'Use both optical and SAR images for joint analysis.')
+    push('Flood cross-check', 'Has flooding occurred here? Compare the optical and SAR evidence.')
+  } else if (pM === 'sar') {
+    push('Water / flood in SAR', 'Is there standing water or flooding visible in this SAR image?')
+    push('Backscatter read', 'Describe the radar backscatter patterns and what they suggest about land cover.')
+    push('Bright returns', 'Highlight bright radar returns, which often indicate settlements, buildings or disturbed ground.')
+  } else {
+    push('Land cover', 'Describe the major land-cover patterns visible in this image.')
+    push('Buildings', 'Highlight all buildings in this image.')
+    push('Water check', 'Is there any visible water or flooding in this image?')
+    push('Recent changes', 'Identify any recent changes or anomalies visible in this scene.')
+  }
+  const seen = new Set()
+  return items.filter(it => {
+    if (seen.has(it.query)) return false
+    seen.add(it.query)
+    return true
+  }).slice(0, 4)
+}
+
+function ImageSuggestions({ primary, compare, run, setQuery }) {
+  const items = useMemo(() => suggestFor(primary, compare), [primary, compare])
+  if (!primary || items.length === 0) return null
+  return (
+    <div className="suggestion-box">
+      <div className="suggestion-title"><Lightbulb size={13}/> Auto-guessed from your imagery</div>
+      <div className="suggestion-chips">
+        {items.map(it => (
+          <button className="suggestion-chip" key={it.query} onClick={() => { setQuery(it.query); run(it.query) }}>
+            <span>{it.label}</span>
+            <small>{it.query}</small>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, message: '' }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: String((error && error.message) || error || 'Unknown error') }
+  }
+  componentDidCatch(error, info) {
+    console.error('SatQuery render error:', error, info)
+  }
+  handleReset() {
+    this.setState({ hasError: false, message: '' })
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="crash-card">
+          <AlertTriangle size={22}/>
+          <div>
+            <b>Something went wrong on-screen</b>
+            <span>{this.state.message}</span>
+          </div>
+          <button onClick={this.handleReset.bind(this)}>Try again</button>
+          <button onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 function App() {
@@ -335,7 +441,8 @@ function App() {
   }
 
   return (
-    <div className="page-shell">
+    <ErrorBoundary>
+      <div className="page-shell">
       <div className="top-utility">
         <StatusBadge health={health}/>
         <button className="utility-button" onClick={() => setAdvancedOpen(v => !v)}><Settings2 size={15}/> Runtime</button>
@@ -379,6 +486,7 @@ function App() {
             onChange={e => setQuery(e.target.value)}
           />
           <QueryContext context={queryContext}/>
+          <ImageSuggestions primary={primary} compare={compare} run={run} setQuery={setQuery}/>
           {queryContext?.supported === false && <div className="capability-warning"><ShieldCheck size={18}/><div><b>Capability not enabled</b><span>{queryContext.unsupported_reason}</span></div></div>}
 
           <div className="input-heading-row">
@@ -419,7 +527,7 @@ function App() {
           )}
 
           <div className="main-actions">
-            <button className={`primary-action${running ? ' running' : ''}`} onClick={run} disabled={running || queryContext?.supported === false || (!primaryId && !canRunWithoutUpload)}>
+            <button className={`primary-action${running ? ' running' : ''}`} onClick={run} disabled={running || queryContext?.supported === false}>
               {running ? <LoaderCircle className="spin" size={18}/> : <Play size={17} fill="currentColor"/>}
               {running ? STAGE_LABELS[status?.status] || 'Running…' : (primaryId ? 'Analyze' : 'Retrieve & Analyze')}
             </button>
@@ -458,7 +566,8 @@ function App() {
         <span>SatQuery AI · Natural-language Earth observation → sensor-aware analysis → GIS evidence → trusted answer.</span>
         <span>Model and confidence limitations are shown explicitly in every result.</span>
       </footer>
-    </div>
+      </div>
+    </ErrorBoundary>
   )
 }
 

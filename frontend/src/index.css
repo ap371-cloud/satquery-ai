@@ -99,6 +99,18 @@ a{color:inherit}
 .question-box{width:100%;height:92px;resize:vertical;border:1px solid var(--border-strong);border-radius:14px;background:#fff;padding:13px 15px;color:var(--ink);outline:none;line-height:1.55;font-size:14px;box-shadow:var(--shadow-1);transition:border-color .16s,box-shadow .16s}
 .question-box::placeholder{color:#9aa8bd}
 .question-box:focus{border-color:#a49be9;box-shadow:0 0 0 4px #ece7ff,0 4px 14px rgba(109,91,208,.08)}
+.suggestion-box{margin:10px 0 4px;border:1px dashed var(--border-strong);border-radius:12px;background:linear-gradient(180deg,#fbfaff,#f6f3ff);padding:9px 11px}
+.suggestion-title{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
+.suggestion-chips{display:flex;flex-wrap:wrap;gap:6px}
+.suggestion-chip{border:1px solid #d9d0f5;background:#fff;border-radius:10px;padding:6px 9px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+.suggestion-chip:hover{border-color:var(--primary);background:#f2edff}
+.suggestion-chip span{display:block;font-size:11px;font-weight:700;color:#3f3a68}
+.suggestion-chip small{display:block;font-size:10px;color:#7a7396;line-height:1.35;max-width:230px}
+.crash-card{display:flex;align-items:flex-start;gap:12px;margin:18px;padding:18px;border:1px solid #fecdd3;background:#fff1f2;color:#b42318;border-radius:14px;font-size:12.5px}
+.crash-card b{display:block;font-size:13px}
+.crash-card span{display:block;color:#91201b;margin-top:3px;font-size:11px}
+.crash-card button{margin-left:auto;border:1px solid #f2b8bd;background:#fff;color:#9f2c2a;border-radius:9px;padding:7px 11px;font-weight:700;font-size:11px;cursor:pointer}
+.crash-card button:hover{background:#ffe4e5}
 .input-heading-row{display:flex;align-items:center;justify-content:space-between;margin-top:16px}
 .input-heading-row .field-label{margin:0}
 .link-button{border:0;background:transparent;color:var(--primary-deep);font-size:12px;font-weight:600;display:flex;gap:5px;align-items:center;padding:5px 6px;border-radius:8px}.link-button:hover{background:var(--primary-soft)}
