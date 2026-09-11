@@ -549,7 +549,7 @@ function App() {
 
         <section className="column right-column anim-output">
           <FieldLabel>Final Answer</FieldLabel>
-          <AnswerBox result={result} status={status}/>
+          <AnswerBox result={result} status={status} askedQuestion={askedQuestion}/>
 
           <FieldLabel>Execution Trace</FieldLabel>
           <ExecutionTrace status={status} result={result}/>
@@ -646,7 +646,7 @@ function DatasetLibrary({ datasets, primaryId, compareId, onPrimary, onCompare }
   )
 }
 
-function AnswerBox({ result, status }) {
+function AnswerBox({ result, status, askedQuestion }) {
   const failed = status?.status === 'failed' || result?.error
   if (failed) return <div className="answer-box error-answer"><AlertTriangle size={18}/><span>{result?.error || 'Analysis failed. Review the execution trace.'}</span></div>
   if (!result) {
