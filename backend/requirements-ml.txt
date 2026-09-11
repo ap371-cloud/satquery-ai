@@ -1,0 +1,2 @@
+torch>=2.3
+segmentation-models-pytorch>=0.5

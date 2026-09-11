@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      SATQUERY_MAX_UPLOAD_MB: 250
+      SATQUERY_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      # Optional external planner bridge:
+      # OPENEARTHAGENT_URL: http://host.docker.internal:8010
+    volumes:
+      - satquery_data:/app/data
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+volumes:
+  satquery_data:

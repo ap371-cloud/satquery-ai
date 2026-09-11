@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="topbar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0f2027"/>
+      <stop offset="100%" style="stop-color:#2c5364"/>
+    </linearGradient>
+    <linearGradient id="greenBtn" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#38ef7d"/>
+      <stop offset="100%" style="stop-color:#11998e"/>
+    </linearGradient>
+    <radialGradient id="mapWater" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" style="stop-color:#29b6f6"/>
+      <stop offset="100%" style="stop-color:#0277bd"/>
+    </radialGradient>
+  </defs>
+
+  <!-- window -->
+  <rect x="30" y="30" width="1140" height="660" rx="16" fill="#0d1b2a" stroke="#1b3a4b" stroke-width="2"/>
+
+  <!-- title bar -->
+  <rect x="30" y="30" width="1140" height="48" rx="16" fill="url(#topbar)"/>
+  <circle cx="70" cy="54" r="6" fill="#ff5f57"/>
+  <circle cx="92" cy="54" r="6" fill="#febc2e"/>
+  <circle cx="114" cy="54" r="6" fill="#28c840"/>
+  <text x="150" y="60" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#9ad7c0">SatQuery AI &ndash; Earth Intelligence Copilot</text>
+
+  <!-- sidebar -->
+  <rect x="48" y="96" width="230" height="576" rx="12" fill="#122a3a"/>
+  <rect x="62" y="118" width="200" height="34" rx="8" fill="url(#greenBtn)"/>
+  <text x="162" y="140" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#0f2027" text-anchor="middle" font-weight="700">New Query</text>
+
+  <rect x="62" y="168" width="200" height="34" rx="8" fill="#0f2027"/>
+  <text x="162" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#cfe8dd" text-anchor="middle">Flood Detection</text>
+
+  <rect x="62" y="210" width="200" height="34" rx="8" fill="#0f2027"/>
+  <text x="162" y="232" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#cfe8dd" text-anchor="middle">Change Detection</text>
+
+  <rect x="62" y="252" width="200" height="34" rx="8" fill="#0f2027"/>
+  <text x="162" y="274" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#cfe8dd" text-anchor="middle">Vegetation</text>
+
+  <rect x="62" y="294" width="200" height="34" rx="8" fill="#0f2027"/>
+  <text x="162" y="316" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#cfe8dd" text-anchor="middle">Vision QA</text>
+
+  <rect x="62" y="336" width="200" height="34" rx="8" fill="#0f2027"/>
+  <text x="162" y="358" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#cfe8dd" text-anchor="middle">Object Grounding</text>
+
+  <!-- chat / query area -->
+  <rect x="294" y="150" width="600" height="150" rx="12" fill="#1b3a4b"/>
+  <text x="330" y="210" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#eaf7f1">Show flooded areas around Assam</text>
+  <text x="330" y="238" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#eaf7f1">between July and August 2025.</text>
+
+  <rect x="310" y="268" width="568" height="8" rx="4" fill="#38ef7d"/>
+
+  <!-- response card -->
+  <rect x="294" y="320" width="600" height="180" rx="12" fill="#122a3a"/>
+  <rect x="294" y="320" width="600" height="40" rx="12" fill="#102430"/>
+  <text x="314" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#38ef7d" font-weight="700">&#9679; ANSWER &nbsp;(model: TEOChat &middot; SAR)</text>
+  <text x="314" y="390" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#eaf7f1">Predicted flooded extent: approx 287 km² across central</text>
+  <text x="314" y="414" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#eaf7f1">and eastern Assam, concentrated near the Brahmaputra</text>
+  <text x="314" y="438" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#eaf7f1">river corridor between Jul &ndash; Aug 2025.</text>
+  <rect x="314" y="458" width="150" height="24" rx="12" fill="url(#greenBtn)"/>
+  <text x="389" y="474" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#0f2027" text-anchor="middle" font-weight="700">Open Map ▼</text>
+
+  <!-- map panel -->
+  <rect x="908" y="150" width="222" height="470" rx="12" fill="#122a3a"/>
+  <text x="930" y="180" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#cfe8dd" font-weight="700">MapLibre Evidence</text>
+  <rect x="924" y="194" width="190" height="300" rx="8" fill="url(#mapWater)"/>
+  <!-- river -->
+  <path d="M 1020 194 C 1000 240, 1060 280, 1015 320 C 980 350, 1040 390, 1000 440" stroke="#b3e5fc" stroke-width="14" fill="none" stroke-opacity="0.8"/>
+  <!-- flood patches -->
+  <ellipse cx="985" cy="330" rx="26" ry="16" fill="#0288d1" fill-opacity="0.85"/>
+  <ellipse cx="1040" cy="370" rx="20" ry="12" fill="#0288d1" fill-opacity="0.8"/>
+  <ellipse cx="1000" cy="260" rx="18" ry="12" fill="#0288d1" fill-opacity="0.7"/>
+  <!-- land -->
+  <path d="M924 194 L924 300 L950 260 L975 200 Z" fill="#56a964" fill-opacity="0.6"/>
+  <path d="M1100 194 L1114 340 L1080 380 L1050 420 L1020 494 L924 494 L924 420 L980 410 L1030 360 L1060 320 Z" fill="#56a964" fill-opacity="0.55"/>
+  <text x="1019" y="520" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#9ad7c0" text-anchor="middle">Assam, India</text>
+
+  <!-- stats -->
+  <rect x="294" y="516" width="600" height="104" rx="12" fill="#122a3a"/>
+  <rect x="314" y="532" width="120" height="72" rx="8" fill="#0f2027"/>
+  <text x="374" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#38ef7d" text-anchor="middle" font-weight="700">287 km²</text>
+  <text x="374" y="582" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#9ad7c0" text-anchor="middle">Flooded area</text>
+
+  <rect x="446" y="532" width="120" height="72" rx="8" fill="#0f2027"/>
+  <text x="506" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#4fc3f7" text-anchor="middle" font-weight="700">SAR RTC</text>
+  <text x="506" y="582" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#9ad7c0" text-anchor="middle">Sensor</text>
+
+  <rect x="578" y="532" width="120" height="72" rx="8" fill="#0f2027"/>
+  <text x="638" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#ffd54f" text-anchor="middle" font-weight="700">High</text>
+  <text x="638" y="582" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#9ad7c0" text-anchor="middle">Confidence</text>
+
+  <rect x="710" y="532" width="150" height="72" rx="8" fill="#0f2027"/>
+  <text x="785" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#ef9a9a" text-anchor="middle">Trace: 6 steps</text>
+  <text x="785" y="582" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#9ad7c0" text-anchor="middle">0 warnings</text>
+
+  <!-- footer input -->
+  <rect x="294" y="634" width="836" height="40" rx="20" fill="#122a3a"/>
+  <text x="320" y="658" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#5f8a7a">Ask about any satellite image or location&hellip;</text>
+</svg>

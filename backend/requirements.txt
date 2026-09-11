@@ -1,0 +1,12 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+rasterio>=1.4
+numpy>=2.0
+Pillow>=10.0
+opencv-python-headless>=4.10
+shapely>=2.0
+pyproj>=3.6
+requests>=2.32
+pystac-client>=0.8
+planetary-computer>=1.0

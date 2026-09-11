@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Node
+node_modules/
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.local
+*.key
+*.pem
+
+# Model weights & data
+*.pt
+*.pth
+*.onnx
+*.h5
+*.hdf5
+*.ckpt
+*.bin
+*.safetensors
+models/
+*.npy
+
+# Data caches
+data/
+*.tif
+*.tiff
+*.nc
+*.jp2
+*.db
+
+# Tool caches
+.offline-markdown-preview/
+.history/
+
+# Frontend tooling
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/.vite/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Test / coverage artifacts
+.coverage
+htmlcov/
+pytest_cache/
+*.coverage
