@@ -317,8 +317,8 @@ class SpecialistRegistry:
             gemini = None
         florence = None
         try:
-            from .local_vlm import LocalFlorenceAdapter
-            fa = LocalFlorenceAdapter()
+            from .local_vlm import LocalCLIPAdapter
+            fa = LocalCLIPAdapter()
             if fa.enabled:
                 florence = fa
         except Exception:

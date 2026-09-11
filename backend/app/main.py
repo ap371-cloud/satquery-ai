@@ -710,15 +710,14 @@ class QueryIn(BaseModel):
 
 @app.get('/api/v1/ai/free-test')
 def ai_free_test():
-    from .local_vlm import LocalFlorenceAdapter
-    fa = LocalFlorenceAdapter()
+    from .local_vlm import LocalCLIPAdapter as LocalAIAdapter
+    fa = LocalAIAdapter()
     files = []
-    root = Path(getattr(fa, 'model_dir', '/app/models/florence2'))
+    root = Path(getattr(fa, 'model_dir', '/app/models/clip'))
     if root.exists():
-        from pprint import pformat
         files = [{'name': p.name, 'bytes': p.stat().st_size, 'missing_marker': p.name == '.missing'} for p in sorted(root.iterdir())]
     if not fa.enabled:
-        return {'ok': False, 'reason': 'florence_not_baked', 'error': getattr(fa, '_load_error', None), 'files': files}
+        return {'ok': False, 'reason': 'clip_not_baked', 'error': getattr(fa, '_load_error', None), 'files': files}
     pngs = sorted(PREVIEWS.glob('*.png'))
     if not pngs:
         return {'ok': False, 'reason': 'no_preview_image', 'files': files}
@@ -739,8 +738,8 @@ def ai_free_test():
 def health():
     florence = None
     try:
-        from .local_vlm import LocalFlorenceAdapter
-        fa = LocalFlorenceAdapter()
+        from .local_vlm import LocalCLIPAdapter
+        fa = LocalCLIPAdapter()
         if fa.enabled:
             florence = fa.health()
     except Exception:
