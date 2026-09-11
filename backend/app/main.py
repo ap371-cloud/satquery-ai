@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import calendar
+import hashlib
 import json
 import os
 import shutil
@@ -115,8 +116,9 @@ def get_dataset(did: str):
 
 def _register_demo_file(fname: str, mod: str, kind: str) -> Dict[str, Any]:
     """Ensure a demo dataset exists on disk (baked copy when present, else
-    synthesize) and register it in the database."""
-    did = 'ds_' + uuid.uuid4().hex[:12]
+    synthesize) and register it in the database. IDs are deterministic so every
+    container instance exposes exactly the same dataset IDs."""
+    did = 'ds_' + hashlib.sha1(fname.encode('utf-8')).hexdigest()[:12]
     dest = UPLOADS / f'{did}.tif'
     png = PREVIEWS / f'{did}.png'
     baked_src = BAKED / fname
