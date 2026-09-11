@@ -25,6 +25,7 @@ from .geo_tools import (
     change_detection, flood_detection, temporal_flood_detection,
     vegetation_change, summarize_image, external_change_detection,
     grounded_segmentation_result, visual_answer_result,
+    image_statistics,
 )
 from .query_parser import parse_query
 from .satellite_catalog import retrieve_sentinel1_pair, resolve_location_online
@@ -823,6 +824,17 @@ def dataset_preview(did: str):
     if not p.exists():
         raise HTTPException(404, 'Preview image is not ready')
     return FileResponse(p, media_type='image/png')
+
+
+@app.get('/api/v1/datasets/{did}/stats')
+def dataset_stats(did: str):
+    row = get_dataset(did)
+    if not row:
+        raise HTTPException(404, 'Dataset not found')
+    try:
+        return image_statistics(row['path'])
+    except Exception as exc:
+        raise HTTPException(500, f'Could not compute statistics for {did}: {exc}')
 
 
 @app.delete('/api/v1/datasets/{did}')

@@ -111,6 +111,52 @@ a{color:inherit}
 .crash-card span{display:block;color:#91201b;margin-top:3px;font-size:11px}
 .crash-card button{margin-left:auto;border:1px solid #f2b8bd;background:#fff;color:#9f2c2a;border-radius:9px;padding:7px 11px;font-weight:700;font-size:11px;cursor:pointer}
 .crash-card button:hover{background:#ffe4e5}
+.cmp-section{border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-1)}
+.cmp-section .section-title-row svg{color:var(--primary)}
+.cmp-replay{border:1px solid var(--border);background:#fff;border-radius:9px;padding:7px 11px;color:#55637a;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}
+.cmp-replay:hover{border-color:var(--primary);color:var(--primary)}
+.cmp-loading,.cmp-empty,.cmp-insight p{color:#7a8396;font-size:12px}
+.cmp-graphs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+.cmp-graph{background:#fbfaff;border:1px solid var(--surface-3);border-radius:12px;padding:12px 14px}
+.cmp-graph-title{font-size:11px;font-weight:800;color:#4a4471;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
+.bar-chart-wrap{display:flex;gap:14px;align-items:flex-end;height:150px;padding:4px 2px}
+.bar-pair{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;height:100%}
+.bar-pair-label{font-size:10px;font-weight:800;color:#8a85a8}
+.bar-track{display:flex;align-items:flex-end;gap:3px;height:100%;width:100%;max-width:46px;border-bottom:2px solid #e4e0f5}
+.bar{display:block;width:14px;border-radius:4px 4px 0 0;transform-origin:bottom;animation:growUp .75s cubic-bezier(.2,.8,.25,1) both}
+.bar.primary{background:linear-gradient(180deg,#8d7ffb,#6a5cea)}
+.bar.compare{background:linear-gradient(180deg,#fec046,#f59e0b)}
+.bar-values{display:flex;gap:6px;font-size:9px;font-weight:700;color:#5a5478}
+.bar-values span{min-width:44px;text-align:center}
+.range-wrap{display:flex;flex-direction:column;gap:12px;padding:4px 2px}
+.range-row{display:flex;align-items:center;gap:9px}
+.range-label{font-size:10px;font-weight:800;color:#8a85a8;width:22px}
+.range-track{position:relative;flex:1;height:20px;background:#efeaf9;border-radius:6px}
+.range-rail{position:absolute;inset:0}
+.range{position:absolute;top:3px;bottom:3px;border-radius:4px;transform-origin:left;animation:rangeIn .8s cubic-bezier(.2,.8,.25,1) both}
+.range.primary{background:#7c6ff7;opacity:.85}
+.range.compare{background:#f59e0b;opacity:.8;top:10px;bottom:4px}
+.range-note{font-size:9px;color:#7a7396;min-width:70px;text-align:right}
+.cmp-legend{display:flex;gap:14px;margin-top:10px;justify-content:center}
+.cmp-legend span{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#5a5478}
+.cmp-legend i.lg{width:10px;height:10px;border-radius:3px;display:inline-block}
+.cmp-legend i.lg.primary{background:#7c6ff7}
+.cmp-legend i.lg.compare{background:#f59e0b}
+.cmp-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.cmp-stat-card{border:1px solid var(--surface-3);border-radius:12px;padding:12px}
+.cmp-stat-name{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#3f3a68;margin-bottom:8px}
+.cmp-stat-name i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.cmp-stat-card dl{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 10px;margin:0}
+.cmp-stat-card dt{font-size:9.5px;color:#8a85a8;text-transform:uppercase;letter-spacing:.3px}
+.cmp-stat-card dd{font-size:12px;font-weight:800;color:#33305c;margin:0}
+.cmp-insight{display:flex;gap:10px;border:1px solid #d9d0f5;background:linear-gradient(180deg,#f8f6ff,#f2edff);border-radius:12px;padding:12px}
+.cmp-insight svg{color:var(--primary);flex-shrink:0}
+.cmp-insight b{display:block;font-size:12px;color:#3f3a68}
+.cmp-insight span{display:block;font-size:10px;color:#8a85a8;margin:2px 0 4px}
+.cmp-insight p{margin:0;line-height:1.5}
+@keyframes growUp{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes rangeIn{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
+@media(max-width:900px){.cmp-graphs,.cmp-stats-grid{grid-template-columns:1fr}}
 .input-heading-row{display:flex;align-items:center;justify-content:space-between;margin-top:16px}
 .input-heading-row .field-label{margin:0}
 .link-button{border:0;background:transparent;color:var(--primary-deep);font-size:12px;font-weight:600;display:flex;gap:5px;align-items:center;padding:5px 6px;border-radius:8px}.link-button:hover{background:var(--primary-soft)}

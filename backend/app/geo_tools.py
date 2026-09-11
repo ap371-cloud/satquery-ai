@@ -103,6 +103,55 @@ def make_preview(path: str | Path, out_path: str | Path) -> str:
     return str(out_path)
 
 
+def image_statistics(path: str | Path) -> Dict[str, Any]:
+    """Per-band statistics of a raster for animated comparison charts."""
+    r = read_raster(path)
+    data = r['data']
+    meta = r['meta']
+    bands = []
+    for i in range(data.shape[0]):
+        a = data[i].astype(np.float32)
+        bands.append({
+            'band': i + 1,
+            'mean': round(float(a.mean()), 3),
+            'std': round(float(a.std()), 3),
+            'min': round(float(a.min()), 3),
+            'max': round(float(a.max()), 3),
+            'p5': round(float(np.percentile(a, 5)), 3),
+            'p95': round(float(np.percentile(a, 95)), 3),
+        })
+    count = meta.get('count') or 0
+    is_sar = (count == 2) or any('vv' in (d or '').lower() or 'vh' in (d or '').lower() for d in (meta.get('band_descriptions') or []))
+    water_fraction = None
+    if is_sar:
+        try:
+            arr = np.mean(data[:2].astype(np.float32), axis=0)
+            mask, _info = _adaptive_sar_water_mask(arr)
+            water_fraction = round(float(mask.mean()), 4)
+        except Exception:
+            water_fraction = None
+    greenness = None
+    if count >= 3:
+        try:
+            r_, g_, b_ = [data[k].astype(np.float32) for k in range(3)]
+            norm = (r_ + g_ + b_ + 1e-6)
+            ndvi_like = (g_ - r_) / norm
+            greenness = round(float(ndvi_like.mean()), 4)
+        except Exception:
+            greenness = None
+    return {
+        'count': count,
+        'width': meta.get('width'),
+        'height': meta.get('height'),
+        'crs': meta.get('crs'),
+        'modality': 'sar' if is_sar else 'optical',
+        'acquisition': meta.get('acquired_at'),
+        'bands': bands,
+        'water_fraction': water_fraction,
+        'greenness': greenness,
+    }
+
+
 def _resize_rgb(rgb: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
     return cv2.resize(rgb, size, interpolation=cv2.INTER_AREA)
 

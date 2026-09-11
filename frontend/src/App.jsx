@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, Check, CheckCircle2, ChevronDown, Copy, Database,
   Download, FileJson, Image as ImageIcon, Layers3, LoaderCircle, Map as MapIcon, Orbit,
   Play, Plus, Radio, RotateCcw, Satellite, Settings2, Sparkles, Terminal,
-  Upload, X, Zap, CloudDownload, Cpu, ShieldCheck, Gauge, Lightbulb
+  Upload, X, Zap, CloudDownload, Cpu, ShieldCheck, Gauge, Lightbulb, BarChart3, RefreshCcw
 } from 'lucide-react'
 import { api, apiUrl, uploadDataset } from './api.js'
 import GeoEvidenceMap from './GeoEvidenceMap.jsx'
@@ -240,6 +240,153 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+function CompareChart({ primary, compare }) {
+  const [s1, setS1] = useState(null)
+  const [s2, setS2] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [replay, setReplay] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    setS1(null)
+    setS2(null)
+    if (!primary && !compare) return undefined
+    setLoading(true)
+    Promise.all([
+      primary ? api(`/api/v1/datasets/${primary.id}/stats`) : Promise.resolve(null),
+      compare ? api(`/api/v1/datasets/${compare.id}/stats`) : Promise.resolve(null),
+    ]).then(([a, b]) => {
+      if (!alive) return
+      setS1(a)
+      setS2(b)
+      setLoading(false)
+      setReplay(k => k + 1)
+    }).catch(() => { if (alive) { setLoading(false); setS1(null); setS2(null) } })
+    return () => { alive = false }
+  }, [primary?.id, compare?.id])
+
+  if (!primary && !compare) return null
+  const first = s1
+  const second = s2
+  const labels = [compare?.filename ? `A · ${primary?.filename || 'Primary'}` : `${primary?.filename || 'Image'}`, compare?.filename ? `B · ${compare.filename}` : ''].filter(Boolean)
+  const bandCount = Math.max(first?.bands?.length || 0, second?.bands?.length || 0)
+
+  const statsFor = (s, idx) => s && (
+    <div className="cmp-stat-card" key={idx}>
+      <div className="cmp-stat-name"><i style={{ background: idx === 0 ? '#7c6ff7' : '#f59e0b' }}/>{labels[idx]}</div>
+      <dl>
+        <div><dt>Modality</dt><dd>{s.modality}</dd></div>
+        <div><dt>Bands</dt><dd>{s.count}</dd></div>
+        {s.water_fraction != null && <div><dt>Water fraction</dt><dd>{(s.water_fraction * 100).toFixed(2)}%</dd></div>}
+        {s.greenness != null && <div><dt>Greenness</dt><dd>{s.greenness}</dd></div>}
+        {s.bands?.[0] && <>
+          <div><dt>Mean</dt><dd>{fmtNum(s.bands[0].mean)}</dd></div>
+          <div><dt>Std-dev</dt><dd>{fmtNum(s.bands[0].std)}</dd></div>
+        </>}
+      </dl>
+    </div>
+  )
+
+  return (
+    <section className="cmp-section anim-evidence">
+      <div className="section-title-row">
+        <div><span><BarChart3 size={14}/> Comparison studio</span><h3>Animated statistics & signature graphs</h3></div>
+        <button className="cmp-replay" onClick={() => setReplay(k => k + 1)}><RefreshCcw size={13}/> Replay animation</button>
+      </div>
+      {loading && <div className="cmp-loading">Computing per-image statistics…</div>}
+      {!loading && !first && <div className="cmp-empty">Statistics generate automatically — select or upload imagery.</div>}
+      {!loading && first && (
+        <>
+          <div className="cmp-graphs">
+            <div className="cmp-graph">
+              <div className="cmp-graph-title">Mean band signature</div>
+              <div className="bar-chart-wrap">
+                {Array.from({ length: bandCount }, (_, bi) => {
+                  const a = (first?.bands || [])[bi] || { mean: 0 }
+                  const b = (second?.bands || [])[bi] || { mean: 0 }
+                  const max = Math.max(first?.bands?.[0]?.max || 1, second?.bands?.[0]?.max || 1, 1)
+                  const m1 = Number(a.mean) / max
+                  const m2 = Number(b.mean) / max
+                  return (
+                    <div className="bar-pair" key={`${bi}-${replay}`}>
+                      <div className="bar-pair-label">B{bi + 1}</div>
+                      <div className="bar-track">
+                        <i className="bar primary" key={`a${replay}`} style={{ height: `${Math.max(3, m1 * 100)}%`, animationDelay: `${bi * 0.12}s` }} title={a.mean}/>
+                        <i className="bar compare" key={`b${replay}`} style={{ height: `${Math.max(3, m2 * 100)}%`, animationDelay: `${bi * 0.12 + 0.07}s` }} title={b.mean}/>
+                      </div>
+                      <div className="bar-values"><span>{fmtNum(a.mean)}</span><span>{fmtNum(b.mean)}</span></div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="cmp-legend"><span><i className="lg primary"/>Primary / earlier</span><span><i className="lg compare"/>Compare / later</span></div>
+            </div>
+            <div className="cmp-graph">
+              <div className="cmp-graph-title">Value distribution (p5 → p95)</div>
+              <div className="range-wrap">
+                {Array.from({ length: bandCount }, (_, bi) => {
+                  const a = (first?.bands || [])[bi]
+                  const b = (second?.bands || [])[bi]
+                  const low = Math.min(a?.min || 0, b?.min || 0, 0)
+                  const high = Math.max(a?.max || 1, b?.max || 1, 1)
+                  const span = Math.max(high - low, 1e-6)
+                  const box = (s) => s ? { left: ((s.p5 - low) / span) * 100, width: Math.max(1.5, ((s.p95 - s.p5) / span) * 100) } : null
+                  const A = box(a), B = box(b)
+                  return (
+                    <div className="range-row" key={`r${bi}-${replay}`}>
+                      <span className="range-label">B{bi + 1}</span>
+                      <div className="range-track">
+                        <div className="range-rail"/>
+                        {A && <i className="range primary" style={{ left: `${A.left}%`, width: `${A.width}%`, animationDelay: `${bi * 0.12}s` }}/>}
+                        {B && <i className="range compare" style={{ left: `${B.left}%`, width: `${B.width}%`, animationDelay: `${bi * 0.12 + 0.06}s` }}/>}
+                      </div>
+                      <span className="range-note">{fmtNum(a?.min)}–{fmtNum(a?.max)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="cmp-legend"><span><i className="lg primary"/>Primary</span><span><i className="lg compare"/>Compare</span></div>
+            </div>
+          </div>
+          <div className="cmp-stats-grid">
+            {statsFor(first, 0)}
+            {statsFor(second, 1)}
+            <div className="cmp-insight">
+              <Sparkles size={15}/>
+              <div><b>Instant read</b>
+                <span>{second ? (labels[0] + ' vs ' + labels[1]) : labels[0]}</span>
+                <p>{insightText(first, second, labels)}</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function insightText(a, b, labels) {
+  if (!a) return 'Select imagery to compute statistics.'
+  if (!b) return `Single scene statistics for ${labels[0]}. Add a second image to compare.`
+  const wa = a.water_fraction, wb = b.water_fraction
+  const part = []
+  if (wa != null && wb != null) {
+    const d = (wb - wa) * 100
+    part.push(d > 0.15 ? `water increased by ${d.toFixed(1)}% between A and B` : d < -0.15 ? `water decreased by ${Math.abs(d).toFixed(1)}% between A and B` : 'water extent is stable')
+  }
+  const m1 = a.bands?.[0]?.mean || 0, m2 = b.bands?.[0]?.mean || 0
+  const dm = ((m2 - m1) / Math.max(Math.abs(m1), 1e-6)) * 100
+  part.push(dm > 5 ? `B is brighter than A (band mean +${dm.toFixed(0)}%)` : dm < -5 ? `B is darker than A (band mean ${dm.toFixed(0)}%)` : 'backscatter/reflectance is similar')
+  return `${labels[0]} vs ${labels[1]}: ${part.join(' · ')}.`
+}
+
+function fmtNum(v) {
+  if (v == null || Number.isNaN(v)) return '—'
+  if (Math.abs(v) >= 1000) return Number(v).toFixed(1)
+  if (Math.abs(v) >= 10) return Number(v).toFixed(1)
+  return Number(v).toFixed(2)
+}
+
 function App() {
   const [datasets, setDatasets] = useState([])
   const [primaryId, setPrimaryId] = useState(null)
@@ -409,6 +556,12 @@ function App() {
   async function useExample(ex) {
     setResult(null)
     setStatus(null)
+    const current = [primaryId, compareId].filter(Boolean)
+    if (current.length > 0) {
+      setQuery(ex.query)
+      run(ex.query, current)
+      return
+    }
     let ds = datasets
     if (ds.length === 0) ds = await refresh(true)
     const id = name => (ds.find(d => d.filename === name) || {}).id || null
@@ -560,6 +713,7 @@ function App() {
       </main>
 
       <EvidenceStrip result={result} primary={primary} compare={compare}/>
+      <CompareChart primary={primary} compare={compare}/>
       <RecentAnalyses rows={history}/>
 
       <footer>
