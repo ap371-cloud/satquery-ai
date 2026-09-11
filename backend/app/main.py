@@ -712,11 +712,16 @@ class QueryIn(BaseModel):
 def ai_free_test():
     from .local_vlm import LocalFlorenceAdapter
     fa = LocalFlorenceAdapter()
+    files = []
+    root = Path(getattr(fa, 'model_dir', '/app/models/florence2'))
+    if root.exists():
+        from pprint import pformat
+        files = [{'name': p.name, 'bytes': p.stat().st_size, 'missing_marker': p.name == '.missing'} for p in sorted(root.iterdir())]
     if not fa.enabled:
-        return {'ok': False, 'reason': 'florence_not_baked'}
+        return {'ok': False, 'reason': 'florence_not_baked', 'error': getattr(fa, '_load_error', None), 'files': files}
     pngs = sorted(PREVIEWS.glob('*.png'))
     if not pngs:
-        return {'ok': False, 'reason': 'no_preview_image'}
+        return {'ok': False, 'reason': 'no_preview_image', 'files': files}
     r = fa.ask('Describe this satellite image scene briefly.', [str(pngs[0])])
     return {
         'ok': r is not None,
@@ -725,6 +730,8 @@ def ai_free_test():
         'backend': (r or {}).get('backend'),
         'message': (r or {}).get('warnings'),
         'latency_ms': (r or {}).get('latency_ms'),
+        'error': getattr(fa, '_load_error', None),
+        'files': files,
     }
 
 

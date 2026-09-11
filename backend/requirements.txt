@@ -9,4 +9,4 @@ pyproj>=3.6
 requests>=2.32
 pystac-client>=0.8
 planetary-computer>=1.0
-transformers>=4.44
+transformers==4.44.2

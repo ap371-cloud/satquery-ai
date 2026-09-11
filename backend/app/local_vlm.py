@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 import threading
@@ -65,6 +66,8 @@ class LocalFlorenceAdapter:
         self._model = None
         self._lock = threading.Lock()
         self._load_error: Optional[str] = None
+        self._attempts = 0
+        self._log = logging.getLogger('local_vlm')
 
     @property
     def model_available(self) -> bool:
@@ -81,9 +84,10 @@ class LocalFlorenceAdapter:
         return os.getenv("FLORENCE_MODEL_ID", "microsoft/Florence-2-base")
 
     def _load(self):
-        if self._model is None:
+        if self._model is None and self._attempts < 3:
             with self._lock:
-                if self._model is None and self._load_error is None:
+                if self._model is None and self._attempts < 3:
+                    self._attempts += 1
                     try:
                         import torch
                         from transformers import AutoProcessor, Florence2ForConditionalGeneration
@@ -93,13 +97,13 @@ class LocalFlorenceAdapter:
                         )
                         self._model.eval()
                         self._processor = AutoProcessor.from_pretrained(self.model_dir, local_files_only=True)
-                        return
+                        self._load_error = None
+                        self._log.info('Florence-2 loaded from %s (cpu)', self.model_dir)
                     except Exception as exc:
                         self._load_error = str(exc)
                         self._model = None
                         self._processor = None
-                        return
-        # already loaded or failed
+                        self._log.warning('Florence-2 load attempt %s failed: %s', self._attempts, exc)
 
     def health(self) -> Dict[str, Any]:
         if not self.model_available:
