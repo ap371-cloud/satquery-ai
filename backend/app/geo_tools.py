@@ -125,11 +125,16 @@ def image_statistics(path: str | Path) -> Dict[str, Any]:
     water_fraction = None
     if is_sar:
         try:
-            arr = np.mean(data[:2].astype(np.float32), axis=0)
+            arr = data[0].astype(np.float32)
             mask, _info = _adaptive_sar_water_mask(arr)
             water_fraction = round(float(mask.mean()), 4)
         except Exception:
-            water_fraction = None
+            try:
+                arr = np.mean(data[:2].astype(np.float32), axis=0)
+                mask = arr < float(np.percentile(arr, 20))
+                water_fraction = round(float(mask.mean()), 4)
+            except Exception:
+                water_fraction = None
     greenness = None
     if count >= 3:
         try:
