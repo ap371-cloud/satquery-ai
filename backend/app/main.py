@@ -708,6 +708,26 @@ class QueryIn(BaseModel):
     dataset_count: int = 0
 
 
+@app.get('/api/v1/ai/free-test')
+def ai_free_test():
+    from .local_vlm import LocalFlorenceAdapter
+    fa = LocalFlorenceAdapter()
+    if not fa.enabled:
+        return {'ok': False, 'reason': 'florence_not_baked'}
+    pngs = sorted(PREVIEWS.glob('*.png'))
+    if not pngs:
+        return {'ok': False, 'reason': 'no_preview_image'}
+    r = fa.ask('Describe this satellite image scene briefly.', [str(pngs[0])])
+    return {
+        'ok': r is not None,
+        'answer': (r or {}).get('answer'),
+        'model': (r or {}).get('model'),
+        'backend': (r or {}).get('backend'),
+        'message': (r or {}).get('warnings'),
+        'latency_ms': (r or {}).get('latency_ms'),
+    }
+
+
 @app.get('/api/v1/health')
 def health():
     florence = None
