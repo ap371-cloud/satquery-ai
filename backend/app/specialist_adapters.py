@@ -308,11 +308,18 @@ class TerraMindAdapter(_HttpService):
 
 class SpecialistRegistry:
     def __init__(self):
-        self.vlm = TEOChatAdapter()
-        self.sar_vlm = SARChatAdapter()
+        gemini = None
+        try:
+            from .gemini_vlm import GeminiVisionAdapter
+            if os.getenv('GEMINI_API_KEY', '').strip():
+                gemini = GeminiVisionAdapter()
+        except Exception:
+            gemini = None
+        self.vlm = gemini if gemini else TEOChatAdapter()
+        self.sar_vlm = gemini if gemini else SARChatAdapter()
         self.segmenter = SamGeoAdapter()
         self.change = OpenCDAdapter()
-        self.large_vlm = LargeRSVQAAdapter()
+        self.large_vlm = gemini if gemini else LargeRSVQAAdapter()
         self.multimodal = TerraMindAdapter()
 
     def health(self) -> Dict[str, Any]:
