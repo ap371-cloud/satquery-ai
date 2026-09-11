@@ -157,7 +157,7 @@ function App() {
   const running = status && !['completed', 'failed'].includes(status.status)
   const canRunWithoutUpload = Boolean(queryContext?.can_auto_retrieve)
 
-  async function refresh() {
+  async function refresh(quiet) {
     try {
       const [ds, he, hi] = await Promise.all([
         api('/api/v1/datasets'),
@@ -167,8 +167,10 @@ function App() {
       setDatasets(ds)
       setHealth(he)
       setHistory(hi)
+      return ds
     } catch (e) {
-      setError(e.message)
+      if (!quiet) setError(e.message)
+      return []
     }
   }
 
@@ -259,10 +261,10 @@ function App() {
     } catch (e) { setError(e.message) }
   }
 
-  async function run() {
-    if (!query.trim()) return setError('Enter a question first.')
-    if (queryContext?.supported === false) return setError(queryContext.unsupported_reason || 'This request is not supported in the current build.')
-    if (!primaryId && !canRunWithoutUpload) return setError('Upload/select imagery, or use a query with a supported location and date range for automatic Sentinel retrieval.')
+  async function run(q = query, ids = selectedIds) {
+    const trimmed = (q || '').trim()
+    if (!trimmed) return setError('Enter a question first.')
+    if (!ids.length && !canRunWithoutUpload) return setError('Upload/select imagery, or use a query with a supported location and date range for automatic Sentinel retrieval.')
     setError('')
     setResult(null)
     setStatus({ status: 'queued', events: [] })
@@ -270,7 +272,7 @@ function App() {
       const created = await api('/api/v1/analyses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim(), dataset_ids: selectedIds, provider }),
+        body: JSON.stringify({ query: trimmed, dataset_ids: ids, provider }),
       })
       if (created && created.answer) {
         setStatus(created)
@@ -291,21 +293,38 @@ function App() {
     setAnalysisId(null)
   }
 
-  function useExample(ex) {
-    setQuery(ex.query)
+  async function useExample(ex) {
     setResult(null)
     setStatus(null)
-    if (ex.title.startsWith('Assam')) {
-      const before = datasets.find(d => d.filename.includes('Assam_July_2025'))
-      const after = datasets.find(d => d.filename.includes('Assam_August_2025'))
-      setPrimaryId(before?.id || null)
-      setCompareId(after?.id || null)
+    let ds = datasets
+    if (ds.length === 0) ds = await refresh(true)
+    const id = name => (ds.find(d => d.filename === name) || {}).id || null
+    const A_JUL = 'Assam_July_2025_S1_SAR_demo.tif'
+    const A_AUG_O = 'Assam_August_2025_S2_optical_demo.tif'
+    const A_AUG_S = 'Assam_August_2025_S1_SAR_demo.tif'
+    const I_2023 = 'Indore_2023_optical.tif'
+    const I_2026 = 'Indore_2026_optical.tif'
+    let p = null
+    let c = null
+    if (ex.title.startsWith('Assam flood')) {
+      p = id(A_JUL); c = id(A_AUG_S)
+    } else if (ex.title.startsWith('Urban expansion')) {
+      p = id(I_2023); c = id(I_2026)
+    } else if (ex.title.startsWith('Vegetation loss')) {
+      p = id(I_2023); c = id(I_2026)
+    } else if (ex.title.startsWith('Vision assistant')) {
+      p = id(A_AUG_O)
+    } else if (ex.title.startsWith('Ground buildings')) {
+      p = id(I_2026)
+    } else if (ex.title.startsWith('Temporal visual')) {
+      p = id(A_JUL); c = id(A_AUG_S)
     } else if (ex.title.startsWith('Optical + SAR')) {
-      const optical = datasets.find(d => d.filename.includes('Assam_August_2025') && d.modality === 'optical')
-      const sar = datasets.find(d => d.filename.includes('Assam_August_2025') && d.modality === 'sar')
-      setPrimaryId(optical?.id || null)
-      setCompareId(sar?.id || null)
+      p = id(A_AUG_O); c = id(A_AUG_S)
     }
+    setPrimaryId(p)
+    setCompareId(c)
+    setQuery(ex.query)
+    if (p || c) run(ex.query, [p, c].filter(Boolean))
   }
 
   return (
