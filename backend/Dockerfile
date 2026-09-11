@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt "uvicorn[standard]>=0.30"
 COPY app ./app
-RUN mkdir -p /app/data/uploads /app/data/previews /app/data/results
+COPY scripts/bake_demo_data.py ./scripts/bake_demo_data.py
+RUN mkdir -p /app/data && python ./scripts/bake_demo_data.py && mkdir -p /app/data/uploads /app/data/previews /app/data/results
 ENV PORT=8000
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
