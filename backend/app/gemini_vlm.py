@@ -51,7 +51,7 @@ class GeminiVisionAdapter:
 
     def __init__(self):
         self.key = os.getenv("GEMINI_API_KEY", "").strip()
-        self.model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+        self.model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
         self.timeout = int(os.getenv("GEMINI_TIMEOUT", "90"))
 
     @property
