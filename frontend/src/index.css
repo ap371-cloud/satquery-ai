@@ -192,6 +192,7 @@ a{color:inherit}
 /* ---------- Answer ---------- */
 .answer-box{min-height:118px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);padding:13px 15px;margin-bottom:16px;box-shadow:var(--shadow-2)}
 .empty-answer{display:flex;align-items:center;justify-content:center;gap:8px;color:#97a4ba;font-size:12.5px}
+.answer-asked{font-size:11px;font-weight:700;color:var(--primary);border-left:3px solid var(--primary);padding:2px 8px;background:var(--surface-2);border-radius:6px;margin-bottom:8px;letter-spacing:.2px}
 .populated-answer p{font-size:14px;line-height:1.7;color:#2b3854;margin:11px 1px}
 .answer-topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .confidence-badge{border-radius:999px;padding:5px 9px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;background:#e7f9f0;color:#0e9f6e;border:1px solid #bfead6}

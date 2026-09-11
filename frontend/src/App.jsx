@@ -150,6 +150,8 @@ function App() {
   const [error, setError] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [askedQuestion, setAskedQuestion] = useState('')
+  const runSeq = useRef(0)
 
   const selectedIds = useMemo(() => [primaryId, compareId].filter(Boolean), [primaryId, compareId])
   const primary = datasets.find(d => d.id === primaryId) || null
@@ -206,15 +208,16 @@ function App() {
   useEffect(() => {
     if (!analysisId) return undefined
     let cancelled = false
+    const seq = runSeq.current
     let timer
     const tick = async () => {
       try {
         const next = await api(`/api/v1/analyses/${analysisId}/status`)
-        if (cancelled) return
+        if (cancelled || seq !== runSeq.current) return
         setStatus(next)
         if (next.status === 'completed' || next.status === 'failed') {
           const final = await api(`/api/v1/analyses/${analysisId}/result`)
-          if (!cancelled) {
+          if (!cancelled && seq === runSeq.current) {
             applyAnalysisResult(final)
             setStatus(final)
           }
@@ -222,7 +225,7 @@ function App() {
         }
         timer = setTimeout(tick, 700)
       } catch (e) {
-        if (!cancelled) setError(e.message)
+        if (!cancelled && seq === runSeq.current) setError(e.message)
       }
     }
     tick()
@@ -265,6 +268,8 @@ function App() {
     const trimmed = (q || '').trim()
     if (!trimmed) return setError('Enter a question first.')
     if (!ids.length && !canRunWithoutUpload) return setError('Upload/select imagery, or use a query with a supported location and date range for automatic Sentinel retrieval.')
+    const seq = ++runSeq.current
+    setAskedQuestion(trimmed)
     setError('')
     setResult(null)
     setStatus({ status: 'queued', events: [] })
@@ -274,6 +279,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: trimmed, dataset_ids: ids, provider }),
       })
+      if (seq !== runSeq.current) return
       if (created && created.answer) {
         setStatus(created)
         applyAnalysisResult(created)
@@ -281,6 +287,7 @@ function App() {
         setAnalysisId(created.analysis_id)
       }
     } catch (e) {
+      if (seq !== runSeq.current) return
       setStatus(null)
       setError(e.message)
     }
@@ -440,7 +447,7 @@ function App() {
           <ExecutionTrace status={status} result={result}/>
 
           <FieldLabel>Geospatial Evidence</FieldLabel>
-          <OutputPanel result={result} primary={primary} running={running}/>
+          <OutputPanel result={result} primary={primary} running={running} askedQuestion={askedQuestion}/>
         </section>
       </main>
 
@@ -542,6 +549,7 @@ function AnswerBox({ result, status }) {
   }
   return (
     <div className="answer-box populated-answer">
+      <div className="answer-asked">Asked: {askedQuestion || '—'}</div>
       <div className="answer-topline"><span className={`confidence-badge confidence-${result.confidence_label?.toLowerCase()}`}>{result.confidence_label} operational confidence · {Math.round((result.confidence || 0) * 100)}%</span><CopyButton text={result.answer}/></div>
       <p>{result.answer}</p>
       <div className="answer-source"><Sparkles size={14}/><span>SatQuery tool router · {result.provider === 'external_agent' ? 'external plan validated' : 'local plan'} · {result.method}</span></div>
@@ -576,7 +584,7 @@ function ExecutionTrace({ status, result }) {
   )
 }
 
-function OutputPanel({ result, primary, running }) {
+function OutputPanel({ result, primary, running, askedQuestion }) {
   const [tab, setTab] = useState('map')
   const src = result?.overlay_b64 || (result?.overlay_url ? apiUrl(result.overlay_url) : previewSrc(primary, null))
   const geojsonHref = result?.geojson ? 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(result.geojson)) : (result?.geojson_url ? apiUrl(result.geojson_url) : null)
