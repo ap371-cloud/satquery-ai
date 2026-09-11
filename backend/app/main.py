@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import base64
 import calendar
 import json
 import os
 import shutil
 import sqlite3
-import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -801,8 +801,18 @@ def create_analysis(inp: AnalysisIn):
             'INSERT INTO analyses VALUES(?,?,?,?,?,?,?,?,?,?)',
             (aid, inp.query, json.dumps(inp.dataset_ids), 'queued', None, inp.provider, '[]', None, now(), None),
         )
-    threading.Thread(target=run_analysis, args=(aid,), daemon=True).start()
-    return {'analysis_id': aid, 'status': 'queued'}
+    run_analysis(aid)
+    row = get_analysis(aid)
+    if not row:
+        raise HTTPException(500, 'Analysis missing after execution')
+    result = json.loads(row['result_json'] or '{}')
+    result['analysis_id'] = aid
+    result['status'] = row['status']
+    result['events'] = json.loads(row['events_json'] or '[]')
+    overlay = RESULTS / f'{aid}_overlay.png'
+    if overlay.exists():
+        result['overlay_b64'] = 'data:image/png;base64,' + base64.b64encode(overlay.read_bytes()).decode('ascii')
+    return result
 
 
 @app.get('/api/v1/analyses/{aid}/status')

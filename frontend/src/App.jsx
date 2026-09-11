@@ -187,6 +187,20 @@ function App() {
     return () => clearTimeout(timer)
   }, [query, selectedIds.length])
 
+  async function applyAnalysisResult(final) {
+    setResult(final)
+    if (final?.source_datasets?.length) {
+      setDatasets(prev => {
+        const byId = new Map(prev.map(x => [x.id, x]))
+        final.source_datasets.forEach(x => byId.set(x.id, x))
+        return [...byId.values()]
+      })
+      setPrimaryId(final.source_datasets[0]?.id || null)
+      setCompareId(final.source_datasets[1]?.id || null)
+    }
+    refresh()
+  }
+
   useEffect(() => {
     if (!analysisId) return undefined
     let cancelled = false
@@ -199,17 +213,8 @@ function App() {
         if (next.status === 'completed' || next.status === 'failed') {
           const final = await api(`/api/v1/analyses/${analysisId}/result`)
           if (!cancelled) {
-            setResult(final)
-            if (final?.source_datasets?.length) {
-              setDatasets(prev => {
-                const byId = new Map(prev.map(x => [x.id, x]))
-                final.source_datasets.forEach(x => byId.set(x.id, x))
-                return [...byId.values()]
-              })
-              setPrimaryId(final.source_datasets[0]?.id || null)
-              setCompareId(final.source_datasets[1]?.id || null)
-            }
-            refresh()
+            applyAnalysisResult(final)
+            setStatus(final)
           }
           return
         }
@@ -267,7 +272,12 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query.trim(), dataset_ids: selectedIds, provider }),
       })
-      setAnalysisId(created.analysis_id)
+      if (created && created.answer) {
+        setStatus(created)
+        applyAnalysisResult(created)
+      } else {
+        setAnalysisId(created.analysis_id)
+      }
     } catch (e) {
       setStatus(null)
       setError(e.message)
@@ -545,7 +555,8 @@ function ExecutionTrace({ status, result }) {
 
 function OutputPanel({ result, primary, running }) {
   const [tab, setTab] = useState('map')
-  const src = result?.overlay_url ? apiUrl(result.overlay_url) : primary?.preview_url ? apiUrl(primary.preview_url) : null
+  const src = result?.overlay_b64 || (result?.overlay_url ? apiUrl(result.overlay_url) : primary?.preview_url ? apiUrl(primary.preview_url) : null)
+  const geojsonHref = result?.geojson ? 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(result.geojson)) : (result?.geojson_url ? apiUrl(result.geojson_url) : null)
   const mapReady = Boolean(result?.map_context?.bounds_wgs84)
   useEffect(() => { if (!mapReady && tab === 'map') setTab('image') }, [mapReady, tab])
   return (
@@ -558,10 +569,10 @@ function OutputPanel({ result, primary, running }) {
         {tab === 'map' && result ? <GeoEvidenceMap result={result}/> : (
           src ? <img src={src} alt="Analysis output"/> : <div className="output-empty"><ImageIcon size={34}/><b>Geospatial output</b><span>Map and annotated evidence will appear here after analysis.</span></div>
         )}
-        {result?.overlay_url && (
+        {(result?.overlay_b64 || result?.overlay_url) && (
           <div className="output-actions">
-            <a href={apiUrl(result.overlay_url)} target="_blank" rel="noreferrer"><Download size={14}/> Image</a>
-            <a href={apiUrl(result.geojson_url)} target="_blank" rel="noreferrer"><FileJson size={14}/> GeoJSON</a>
+            <a href={result.overlay_b64 || apiUrl(result.overlay_url)} target="_blank" rel="noreferrer" download={result.overlay_b64 ? 'overlay.png' : undefined}><Download size={14}/> Image</a>
+            {geojsonHref && <a href={geojsonHref} target="_blank" rel="noreferrer" download="result.geojson"><FileJson size={14}/> GeoJSON</a>}
           </div>
         )}
       </div>
