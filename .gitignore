@@ -65,3 +65,5 @@ Thumbs.db
 htmlcov/
 pytest_cache/
 *.coverage
+
+.vercel

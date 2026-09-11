@@ -31,7 +31,12 @@ from .openearth_adapter import OpenEarthAdapter
 from .specialist_adapters import SpecialistRegistry
 
 BASE = Path(__file__).resolve().parents[1]
-DATA = BASE / 'data'
+if os.getenv('SATQUERY_DATA_DIR'):
+    DATA = Path(os.getenv('SATQUERY_DATA_DIR'))
+elif os.getenv('VERCEL'):
+    DATA = Path('/tmp/satquery')
+else:
+    DATA = BASE / 'data'
 UPLOADS = DATA / 'uploads'
 PREVIEWS = DATA / 'previews'
 RESULTS = DATA / 'results'
