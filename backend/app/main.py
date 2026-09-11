@@ -710,7 +710,17 @@ class QueryIn(BaseModel):
 
 @app.get('/api/v1/health')
 def health():
-    return {'status': 'ok', 'time': now(), 'agent_bridge': oea.health(), 'flood_model': model_status(), 'specialists': specialists.health()}
+    florence = None
+    try:
+        from .local_vlm import LocalFlorenceAdapter
+        fa = LocalFlorenceAdapter()
+        if fa.enabled:
+            florence = fa.health()
+    except Exception:
+        florence = None
+    body = {'status': 'ok', 'time': now(), 'agent_bridge': oea.health(), 'flood_model': model_status(), 'specialists': specialists.health()}
+    body['onboard_ai'] = florence
+    return body
 
 
 @app.post('/api/v1/query/parse')

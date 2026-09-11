@@ -104,15 +104,14 @@ class LocalFlorenceAdapter:
     def health(self) -> Dict[str, Any]:
         if not self.model_available:
             return {"enabled": False, "reachable": False, "note": "Florence-2 model not baked. Deterministic fallback active.", "model_name": "florence-2 (local)"}
-        self._load()
-        if self._load_error:
-            return {"enabled": True, "available": True, "reachable": False, "ready": False, "error": self._load_error, "model_name": "florence-2 (local)"}
         return {
             "enabled": True,
             "available": True,
             "reachable": True,
             "ready": self._model is not None,
-            "model_name": self._model_id().split("/")[-1] if self._model is not None else "florence-2 (local)",
+            "loading_lazy": True,
+            "note": "Local Florence-2 loads on first analysis (no API key needed).",
+            "model_name": "florence-2-base (local)",
             "provider": "Local Florence-2 (no API key)",
         }
 
