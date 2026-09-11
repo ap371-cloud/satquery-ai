@@ -7,7 +7,10 @@ runtime filesystem (/tmp) is ephemeral and per-instance.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+sys.path.insert(0, '/app')
 
 from app.demo_data import DEMO_SPECS, bake_all, period_label_for
 from app.geo_tools import make_preview
