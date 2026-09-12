@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { api, apiUrl, uploadDataset } from './api.js'
 import GeoEvidenceMap from './GeoEvidenceMap.jsx'
+import { Appear, MotionButton } from './motion.jsx'
 
 const EXAMPLES = [
   {
@@ -198,10 +199,10 @@ function ImageSuggestions({ primary, compare, run, setQuery }) {
       <div className="suggestion-title"><Lightbulb size={13}/> Auto-guessed from your imagery</div>
       <div className="suggestion-chips">
         {items.map(it => (
-          <button className="suggestion-chip" key={it.query} onClick={() => { setQuery(it.query); run(it.query) }}>
+          <MotionButton className="suggestion-chip" key={it.query} onClick={() => { setQuery(it.query); run(it.query) }}>
             <span>{it.label}</span>
             <small>{it.query}</small>
-          </button>
+          </MotionButton>
         ))}
       </div>
     </div>
@@ -598,12 +599,12 @@ function App() {
       <div className="page-shell">
       <div className="top-utility">
         <StatusBadge health={health}/>
-        <button className="utility-button" onClick={() => setAdvancedOpen(v => !v)}><Settings2 size={15}/> Runtime</button>
+        <MotionButton className="utility-button" onClick={() => setAdvancedOpen(v => !v)}><Settings2 size={15}/> Runtime</MotionButton>
       </div>
 
       <Brand/>
 
-      {advancedOpen && (
+      <Appear show={advancedOpen}>
         <section className="advanced-bar anim-input">
           <div>
             <label>Agent runtime</label>
@@ -625,9 +626,11 @@ function App() {
             <span><Zap size={15}/> Agent bridge <b>{health?.agent_bridge?.reachable ? 'connected' : 'optional'}</b></span>
           </div>
         </section>
-      )}
+      </Appear>
 
-      {error && <div className="error-box"><AlertTriangle size={17}/><span>{error}</span><button onClick={() => setError('')}><X size={15}/></button></div>}
+      <Appear show={Boolean(error)}>
+        <div className="error-box"><AlertTriangle size={17}/><span>{error}</span><button onClick={() => setError('')}><X size={15}/></button></div>
+      </Appear>
 
       <main className="analysis-grid">
         <section className="column left-column anim-input">
@@ -644,7 +647,7 @@ function App() {
 
           <div className="input-heading-row">
             <FieldLabel>Satellite imagery</FieldLabel>
-            <button className="link-button" onClick={() => setLibraryOpen(v => !v)}><Database size={14}/> Choose existing</button>
+            <MotionButton className="link-button" onClick={() => setLibraryOpen(v => !v)}><Database size={14}/> Choose existing</MotionButton>
           </div>
 
           {!primary && canRunWithoutUpload && (
@@ -669,7 +672,7 @@ function App() {
             onClear={() => { setCompareId(null); setResult(null) }}
           />
 
-          {libraryOpen && (
+          <Appear show={libraryOpen}>
             <DatasetLibrary
               datasets={datasets}
               primaryId={primaryId}
@@ -677,27 +680,27 @@ function App() {
               onPrimary={id => { setPrimaryId(id); if (compareId === id) setCompareId(null); setLibraryOpen(false); setResult(null) }}
               onCompare={id => { setCompareId(id); setLibraryOpen(false); setResult(null) }}
             />
-          )}
+          </Appear>
 
           <div className="main-actions">
-            <button className={`primary-action${running ? ' running' : ''}`} onClick={run} disabled={running || queryContext?.supported === false}>
+            <MotionButton className={`primary-action${running ? ' running' : ''}`} onClick={run} disabled={running || queryContext?.supported === false}>
               {running ? <LoaderCircle className="spin" size={18}/> : <Play size={17} fill="currentColor"/>}
               {running ? STAGE_LABELS[status?.status] || 'Running…' : (primaryId ? 'Analyze' : 'Retrieve & Analyze')}
-            </button>
-            <button className="secondary-action" onClick={clear}><RotateCcw size={16}/> Clear</button>
+            </MotionButton>
+            <MotionButton className="secondary-action" onClick={clear}><RotateCcw size={16}/> Clear</MotionButton>
           </div>
 
           <div className="sample-title">Sample Queries</div>
           <div className="examples-list">
             {EXAMPLES.map((ex, idx) => (
-              <button className="example-row" key={ex.title} onClick={() => useExample(ex)}>
+              <MotionButton className="example-row" key={ex.title} onClick={() => useExample(ex)}>
                 <span className="example-number">{idx + 1}</span>
                 <span><b>{ex.title}</b><small>{ex.query}</small></span>
                 <em>{ex.hint}</em>
-              </button>
+              </MotionButton>
             ))}
           </div>
-          <button className="demo-button" onClick={loadDemo}><Sparkles size={15}/> Load offline Assam temporal flood demo</button>
+          <MotionButton className="demo-button" onClick={loadDemo}><Sparkles size={15}/> Load offline Assam temporal flood demo</MotionButton>
         </section>
 
         <section className="column right-column anim-output">
@@ -764,11 +767,11 @@ function CompareInput({ dataset, busy, onFile, onClear }) {
   const ref = useRef(null)
   if (!dataset) {
     return (
-      <div className="compare-add-row">
-        <button onClick={() => ref.current?.click()} disabled={busy}>
-          {busy ? <LoaderCircle className="spin" size={15}/> : <Plus size={15}/>} Add second image for temporal comparison
-        </button>
-        <span>Optional</span>
+<div className="compare-add-row">
+      <MotionButton onClick={() => ref.current?.click()} disabled={busy}>
+        {busy ? <LoaderCircle className="spin" size={15}/> : <Plus size={15}/>} Add second image for temporal comparison
+      </MotionButton>
+      <span>Optional</span>
         <input ref={ref} hidden type="file" accept=".tif,.tiff,.png,.jpg,.jpeg" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }}/>
       </div>
     )
@@ -791,8 +794,8 @@ function DatasetLibrary({ datasets, primaryId, compareId, onPrimary, onCompare }
           <img src={previewSrc(d)} alt=""/>
           <div><b>{d.filename}</b><small>{formatMeta(d).join(' · ')}</small></div>
           <div className="library-actions">
-            <button className={primaryId === d.id ? 'selected' : ''} onClick={() => onPrimary(d.id)}>Earlier</button>
-            <button className={compareId === d.id ? 'selected' : ''} disabled={primaryId === d.id} onClick={() => onCompare(d.id)}>Later</button>
+            <MotionButton className={primaryId === d.id ? 'selected' : ''} onClick={() => onPrimary(d.id)}>Earlier</MotionButton>
+            <MotionButton className={compareId === d.id ? 'selected' : ''} disabled={primaryId === d.id} onClick={() => onCompare(d.id)}>Later</MotionButton>
           </div>
         </div>
       ))}
@@ -825,7 +828,7 @@ function CopyButton({ text }) {
   async function copy() {
     try { await navigator.clipboard.writeText(text || ''); setDone(true); setTimeout(() => setDone(false), 1200) } catch { /* no-op */ }
   }
-  return <button className="icon-text-button" onClick={copy}>{done ? <Check size={14}/> : <Copy size={14}/>} {done ? 'Copied' : 'Copy'}</button>
+  return <MotionButton className="icon-text-button" onClick={copy}>{done ? <Check size={14}/> : <Copy size={14}/>} {done ? 'Copied' : 'Copy'}</MotionButton>
 }
 
 function ExecutionTrace({ status, result }) {
@@ -856,8 +859,8 @@ function OutputPanel({ result, primary, running, askedQuestion }) {
   return (
     <div className={`output-panel-wrap${running ? ' running' : ''}`}>
       <div className="output-tabs">
-        <button className={tab === 'map' ? 'active' : ''} disabled={!mapReady} onClick={() => setTab('map')}><MapIcon size={14}/> Interactive Map</button>
-        <button className={tab === 'image' ? 'active' : ''} onClick={() => setTab('image')}><ImageIcon size={14}/> Evidence Image</button>
+        <MotionButton className={tab === 'map' ? 'active' : ''} disabled={!mapReady} onClick={() => setTab('map')}><MapIcon size={14}/> Interactive Map</MotionButton>
+        <MotionButton className={tab === 'image' ? 'active' : ''} onClick={() => setTab('image')}><ImageIcon size={14}/> Evidence Image</MotionButton>
       </div>
       <div className="output-image-box">
         {tab === 'map' && result ? <GeoEvidenceMap result={result}/> : (
@@ -925,8 +928,10 @@ function RecentAnalyses({ rows }) {
   if (!rows?.length) return null
   return (
     <section className="recent-section">
-      <button className="recent-toggle" onClick={() => setOpen(v => !v)}><div><Database size={16}/><span>Recent analyses</span><em>{rows.length}</em></div><ChevronDown size={16} className={open ? 'flip' : ''}/></button>
-      {open && <div className="recent-list">{rows.slice(0, 8).map(r => <div key={r.id}><span className={`mini-status ${r.status}`}/><b>{r.query}</b><small>{r.intent || 'pending'} · {r.provider || 'auto'}</small></div>)}</div>}
+      <MotionButton className="recent-toggle" onClick={() => setOpen(v => !v)}><div><Database size={16}/><span>Recent analyses</span><em>{rows.length}</em></div><ChevronDown size={16} className={open ? 'flip' : ''}/></MotionButton>
+      <Appear show={open}>
+        <div className="recent-list">{rows.slice(0, 8).map(r => <div key={r.id}><span className={`mini-status ${r.status}`}/><b>{r.query}</b><small>{r.intent || 'pending'} · {r.provider || 'auto'}</small></div>)}</div>
+      </Appear>
     </section>
   )
 }
