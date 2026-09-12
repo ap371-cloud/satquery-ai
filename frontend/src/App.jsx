@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { api, apiUrl, uploadDataset } from './api.js'
 import GeoEvidenceMap from './GeoEvidenceMap.jsx'
-import { Appear, MotionButton } from './motion.jsx'
+import { Appear, MotionButton, Stagger, StaggerItem, gentle, motion } from './motion.jsx'
 
 const EXAMPLES = [
   {
@@ -88,20 +88,21 @@ function visionStatusText(health) {
 }
 
 function Brand() {
+  const rise = (delay, y = 18) => ({ initial: { opacity: 0, y }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.55, delay, ease: gentle } })
   return (
     <div className="brand-wrap hero-wrap-float">
       <div className="brand-logo" aria-label="SatQuery AI">
-        <div className="brand-orbit"><Orbit size={58} strokeWidth={1.65}/></div>
-        <div className="brand-word"><span>SatQuery</span><b>AI</b></div>
+        <motion.div className="brand-orbit" {...rise(0)}><Orbit size={58} strokeWidth={1.65}/></motion.div>
+        <motion.div className="brand-word" {...rise(0.08)}><span>SatQuery</span><b>AI</b></motion.div>
       </div>
-      <div className="brand-extension"><span>Agentic Multimodal Earth Intelligence</span></div>
-      <h2>Ask Earth. AI Plans. Models Analyze. Evidence Answers.</h2>
-      <h1>Live Analysis <span>Workspace</span></h1>
-      <div className="hero-chips">
+      <motion.div className="brand-extension" {...rise(0.16)}><span>Agentic Multimodal Earth Intelligence</span></motion.div>
+      <motion.h2 {...rise(0.24)}>Ask Earth. AI Plans. Models Analyze. Evidence Answers.</motion.h2>
+      <motion.h1 {...rise(0.32)}>Live Analysis <span>Workspace</span></motion.h1>
+      <motion.div className="hero-chips" {...rise(0.42)}>
         <span className="hero-chip"><Sparkles size={14}/><b>Sensor-aware routing</b></span>
         <span className="hero-chip"><Layers3 size={14}/><b>Evidence-first answers</b></span>
         <span className="hero-chip"><Satellite size={14}/><b>Optical + SAR fusion</b></span>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -121,17 +122,17 @@ function QueryContext({ context }) {
   const loc = context.location?.name
   const dr = context.date_range
   return (
-    <div className="query-context">
-      {loc && <span><MapIcon size={12}/>{loc}</span>}
-      {dr && <span><Activity size={12}/>{dr.start_date} → {dr.end_date}</span>}
-      {context.preferred_sensor && <span><Satellite size={12}/>{context.preferred_sensor.toUpperCase()}</span>}
-      {context.unresolved_location_text && !loc && <span><MapIcon size={12}/>Resolve: {context.unresolved_location_text}</span>}
-      {context.target_object && <span><Sparkles size={12}/>Target: {context.target_object}</span>}
-      {context.vision_assistant && <span><Cpu size={12}/>Vision assistant route</span>}
-      {context.multimodal && <span><Layers3 size={12}/>Optical + SAR joint route</span>}
-      {context.can_auto_retrieve && <span className="auto-chip"><CloudDownload size={12}/>Auto satellite retrieval ready</span>}
-      {context.supported === false && <span className="unsupported-chip"><AlertTriangle size={12}/>Unsupported in current build</span>}
-    </div>
+    <Stagger className="query-context" gap={0.045}>
+      {loc && <StaggerItem className="chip-wrap"><span><MapIcon size={12}/>{loc}</span></StaggerItem>}
+      {dr && <StaggerItem className="chip-wrap"><span><Activity size={12}/>{dr.start_date} → {dr.end_date}</span></StaggerItem>}
+      {context.preferred_sensor && <StaggerItem className="chip-wrap"><span><Satellite size={12}/>{context.preferred_sensor.toUpperCase()}</span></StaggerItem>}
+        {context.unresolved_location_text && !loc && <StaggerItem className="chip-wrap"><span><MapIcon size={12}/>Resolve: {context.unresolved_location_text}</span></StaggerItem>}
+      {context.target_object && <StaggerItem className="chip-wrap"><span><Sparkles size={12}/>Target: {context.target_object}</span></StaggerItem>}
+      {context.vision_assistant && <StaggerItem className="chip-wrap"><span><Cpu size={12}/>Vision assistant route</span></StaggerItem>}
+      {context.multimodal && <StaggerItem className="chip-wrap"><span><Layers3 size={12}/>Optical + SAR joint route</span></StaggerItem>}
+      {context.can_auto_retrieve && <StaggerItem className="chip-wrap"><span className="auto-chip"><CloudDownload size={12}/>Auto satellite retrieval ready</span></StaggerItem>}
+      {context.supported === false && <StaggerItem className="chip-wrap"><span className="unsupported-chip"><AlertTriangle size={12}/>Unsupported in current build</span></StaggerItem>}
+    </Stagger>
   )
 }
 
@@ -144,7 +145,7 @@ function yearOf(dataset) {
   return fromName ? fromName[1] : null
 }
 
-function suggestFor(primary, compare, dataset) {
+function suggestFor(primary, compare, _dataset) {
   if (!primary) return []
   const pM = primary.modality || ''
   const cM = compare?.modality || ''
@@ -633,7 +634,7 @@ function App() {
       </Appear>
 
       <main className="analysis-grid">
-        <section className="column left-column anim-input">
+        <motion.section className="column left-column anim-input" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.06, ease: gentle }}>
           <FieldLabel>Enter your question</FieldLabel>
           <textarea
             className="question-box"
@@ -691,19 +692,21 @@ function App() {
           </div>
 
           <div className="sample-title">Sample Queries</div>
-          <div className="examples-list">
+          <Stagger className="examples-list" gap={0.045}>
             {EXAMPLES.map((ex, idx) => (
-              <MotionButton className="example-row" key={ex.title} onClick={() => useExample(ex)}>
-                <span className="example-number">{idx + 1}</span>
-                <span><b>{ex.title}</b><small>{ex.query}</small></span>
-                <em>{ex.hint}</em>
-              </MotionButton>
+              <StaggerItem key={ex.title}>
+                <MotionButton className="example-row" onClick={() => useExample(ex)}>
+                  <span className="example-number">{idx + 1}</span>
+                  <span><b>{ex.title}</b><small>{ex.query}</small></span>
+                  <em>{ex.hint}</em>
+                </MotionButton>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
           <MotionButton className="demo-button" onClick={loadDemo}><Sparkles size={15}/> Load offline Assam temporal flood demo</MotionButton>
-        </section>
+        </motion.section>
 
-        <section className="column right-column anim-output">
+        <motion.section className="column right-column anim-output" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.16, ease: gentle }}>
           <FieldLabel>Final Answer</FieldLabel>
           <AnswerBox result={result} status={status} askedQuestion={askedQuestion}/>
 
@@ -712,7 +715,7 @@ function App() {
 
           <FieldLabel>Geospatial Evidence</FieldLabel>
           <OutputPanel result={result} primary={primary} running={running} askedQuestion={askedQuestion}/>
-        </section>
+        </motion.section>
       </main>
 
       <EvidenceStrip result={result} primary={primary} compare={compare}/>
@@ -805,21 +808,31 @@ function DatasetLibrary({ datasets, primaryId, compareId, onPrimary, onCompare }
 
 function AnswerBox({ result, status, askedQuestion }) {
   const failed = status?.status === 'failed' || result?.error
-  if (failed) return <div className="answer-box error-answer"><AlertTriangle size={18}/><span>{result?.error || 'Analysis failed. Review the execution trace.'}</span></div>
-  if (!result) {
-    return (
-      <div className="answer-box empty-answer">
-        {status ? <><LoaderCircle className="spin" size={18}/><span>{STAGE_LABELS[status.status] || 'SatQuery is working…'}</span></> : <span>The grounded final answer will appear here.</span>}
-      </div>
-    )
-  }
   return (
-    <div className="answer-box populated-answer">
-      <div className="answer-asked">Asked: {askedQuestion || '—'}</div>
-      <div className="answer-topline"><span className={`confidence-badge confidence-${result.confidence_label?.toLowerCase()}`}>{result.confidence_label} operational confidence · {Math.round((result.confidence || 0) * 100)}%</span><CopyButton text={result.answer}/></div>
-      <p>{result.answer}</p>
-      <div className="answer-source"><Sparkles size={14}/><span>SatQuery tool router · {result.provider === 'external_agent' ? 'external plan validated' : 'local plan'} · {result.method}</span></div>
-    </div>
+    <AnimatePresence mode="wait" initial={false}>
+      {failed ? (
+        <motion.div className="answer-box error-answer" key="failed"
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.28, ease: gentle }}>
+          <AlertTriangle size={18}/><span>{result?.error || 'Analysis failed. Review the execution trace.'}</span>
+        </motion.div>
+      ) : !result ? (
+        <motion.div className="answer-box empty-answer" key="empty"
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: gentle }}>
+          {status ? <><LoaderCircle className="spin" size={18}/><span>{STAGE_LABELS[status.status] || 'SatQuery is working…'}</span></> : <span>The grounded final answer will appear here.</span>}
+        </motion.div>
+      ) : (
+        <motion.div className="answer-box populated-answer" key="result"
+          initial={{ opacity: 0, y: 16, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.4, ease: gentle }}>
+          <div className="answer-asked">Asked: {askedQuestion || '—'}</div>
+          <div className="answer-topline"><span className={`confidence-badge confidence-${result.confidence_label?.toLowerCase()}`}>{result.confidence_label} operational confidence · {Math.round((result.confidence || 0) * 100)}%</span><CopyButton text={result.answer}/></div>
+          <p>{result.answer}</p>
+          <div className="answer-source"><Sparkles size={14}/><span>SatQuery tool router · {result.provider === 'external_agent' ? 'external plan validated' : 'local plan'} · {result.method}</span></div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -836,21 +849,21 @@ function ExecutionTrace({ status, result }) {
   return (
     <div className="trace-box">
       <div className="trace-toolbar"><Terminal size={15}/><span>{status?.status ? STAGE_LABELS[status.status] : 'Waiting for submission'}</span>{status && !['completed', 'failed'].includes(status.status) && <LoaderCircle className="spin" size={14}/>}</div>
-      <div className="trace-content">
+      <Stagger className="trace-content" gap={0.045}>
         {events.length === 0 ? <div className="trace-placeholder">Intent, satellite retrieval, sensor routing, tool calls and evidence checks will stream here.</div> : events.map((e, i) => (
-          <div className={`trace-line ${e.state || ''}${i === events.length - 1 && !['completed', 'failed'].includes(e.state) ? ' new-flash' : ''}`} key={`${e.ts}-${i}`}>
+          <StaggerItem className={`trace-line ${e.state || ''}${i === events.length - 1 && !['completed', 'failed'].includes(e.state) ? ' new-flash' : ''}`} key={`${e.ts}-${i}`}>
             <span className="trace-index">{String(i + 1).padStart(2, '0')}</span>
             <span className="trace-icon">{e.state === 'error' ? '×' : e.state === 'warning' ? '!' : '✓'}</span>
             <div><b>{e.title}</b><small>{e.detail}</small></div>
             <time>{formatDate(e.ts)}</time>
-          </div>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
     </div>
   )
 }
 
-function OutputPanel({ result, primary, running, askedQuestion }) {
+function OutputPanel({ result, primary, running, _askedQuestion }) {
   const [tab, setTab] = useState('map')
   const src = result?.overlay_b64 || (result?.overlay_url ? apiUrl(result.overlay_url) : previewSrc(primary, null))
   const geojsonHref = result?.geojson ? 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(result.geojson)) : (result?.geojson_url ? apiUrl(result.geojson_url) : null)
@@ -864,7 +877,7 @@ function OutputPanel({ result, primary, running, askedQuestion }) {
       </div>
       <div className="output-image-box">
         {tab === 'map' && result ? <GeoEvidenceMap result={result}/> : (
-          src ? <img src={src} alt="Analysis output"/> : <div className="output-empty"><ImageIcon size={34}/><b>Geospatial output</b><span>Map and annotated evidence will appear here after analysis.</span></div>
+          src ? <motion.img key={src} initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease: gentle }} src={src} alt="Analysis output"/> : <div className="output-empty"><ImageIcon size={34}/><b>Geospatial output</b><span>Map and annotated evidence will appear here after analysis.</span></div>
         )}
         {(result?.overlay_b64 || result?.overlay_url) && (
           <div className="output-actions">

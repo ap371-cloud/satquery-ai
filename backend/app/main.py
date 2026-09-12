@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -885,20 +886,8 @@ def create_analysis(inp: AnalysisIn):
             'INSERT INTO analyses VALUES(?,?,?,?,?,?,?,?,?,?)',
             (aid, inp.query, json.dumps(inp.dataset_ids), 'queued', None, inp.provider, '[]', None, now(), None),
         )
-    run_analysis(aid)
-    row = get_analysis(aid)
-    if not row:
-        raise HTTPException(500, 'Analysis missing after execution')
-    result = json.loads(row['result_json'] or '{}')
-    result['analysis_id'] = aid
-    result['status'] = row['status']
-    result['events'] = json.loads(row['events_json'] or '[]')
-    try:
-        overlay = fetch_file(f'results/{aid}_overlay.png')
-        result['overlay_b64'] = 'data:image/png;base64,' + base64.b64encode(overlay.read_bytes()).decode('ascii')
-    except FileNotFoundError:
-        pass
-    return result
+    threading.Thread(target=run_analysis, args=(aid,), name=f'analysis-{aid}', daemon=True).start()
+    return {'analysis_id': aid, 'status': 'queued', 'events': []}
 
 
 @app.get('/api/v1/analyses/{aid}/status')

@@ -33,8 +33,13 @@ def remote_enabled():
 def db():
     if DATABASE_URL:
         return _PgConn()
-    con = sqlite3.connect(str(DB))
+    con = sqlite3.connect(str(DB), timeout=15)
     con.row_factory = sqlite3.Row
+    try:
+        con.execute('PRAGMA journal_mode=WAL')
+        con.execute('PRAGMA busy_timeout=10000')
+    except Exception:
+        pass
     return con
 
 

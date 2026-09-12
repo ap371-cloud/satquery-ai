@@ -512,6 +512,15 @@ footer a:hover{color:var(--primary-deep)}
 .spin{animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .demo-watermark{position:absolute;right:13px;top:60px;background:rgba(245,158,11,.92);color:#fff;border-radius:7px;padding:5px 8px;font-size:8.5px;letter-spacing:.5px;font-weight:800;backdrop-filter:blur(2px)}
 
+/* ---------- Motion overrides ---------- */
+/* Entrance animations moved to motion primitives (motion/react).             */
+/* These classes stay for layout only; real transitions are driven by JSX.    */
+.anim-input,.anim-output{animation:none}
+.trace-line{animation:none}
+.example-row{animation:none}
+.query-context span{animation:none}
+.populated-answer,.error-answer{animation:none}
+
 /* ---------- Responsive ---------- */
 @media(max-width:1200px){.evidence-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1050px){.page-shell{padding:18px}.analysis-grid{gap:16px}.image-input-card,.output-image-box{height:430px}.evidence-grid{grid-template-columns:repeat(2,1fr)}}
