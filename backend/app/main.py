@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import shutil
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,19 +40,11 @@ from .demo_data import (
 )
 
 BASE = Path(__file__).resolve().parents[1]
-if os.getenv('SATQUERY_DATA_DIR'):
-    DATA = Path(os.getenv('SATQUERY_DATA_DIR'))
-elif os.getenv('VERCEL'):
-    DATA = Path('/tmp/satquery')
-else:
-    DATA = BASE / 'data'
-UPLOADS = DATA / 'uploads'
-PREVIEWS = DATA / 'previews'
-RESULTS = DATA / 'results'
-DB = DATA / 'satquery.db'
 BAKED = Path(os.getenv('SATQUERY_BAKED_DIR', str(BASE / 'data' / 'baked')))
-for d in [UPLOADS, PREVIEWS, RESULTS]:
-    d.mkdir(parents=True, exist_ok=True)
+from .durable import (
+    DATA, UPLOADS, PREVIEWS, RESULTS, DB, db,
+    remote_enabled, put_file, fetch_file, delete_file,
+)
 
 MAX_BYTES = int(os.getenv('SATQUERY_MAX_UPLOAD_MB', '250')) * 1024 * 1024
 ALLOWED = {'.tif', '.tiff', '.png', '.jpg', '.jpeg'}
@@ -71,12 +62,6 @@ specialists = SpecialistRegistry()
 
 def now():
     return datetime.now(timezone.utc).isoformat()
-
-
-def db():
-    con = sqlite3.connect(DB)
-    con.row_factory = sqlite3.Row
-    return con
 
 
 def init_db():
@@ -145,8 +130,14 @@ def _register_demo_file(fname: str, mod: str, kind: str) -> Dict[str, Any]:
     md = read_raster(dest)['meta']
     md['period_label'] = period_label_for(kind)
     md['demo_data'] = True
-    with db() as con:
-        con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, fname, str(dest), str(png), mod, json.dumps(md), now()))
+    try:
+        with db() as con:
+            con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, fname, f'uploads/{did}.tif', f'previews/{did}.png', mod, json.dumps(md), now()))
+    except Exception:
+        return dataset_row(get_dataset(did))
+    if remote_enabled():
+        put_file(f'uploads/{did}.tif', dest)
+        put_file(f'previews/{did}.png', png)
     return dataset_row(get_dataset(did))
 
 
@@ -353,6 +344,18 @@ def _dataset_location_warning(dataset, query_context: Dict[str, Any]) -> Optiona
     return None
 
 
+def _materialize(rows):
+    """Turn DB rows into dicts whose path/preview_path point at local files,
+    downloading from durable storage into the per-instance cache when needed."""
+    out = []
+    for r in rows:
+        d = dict(r)
+        d['path'] = str(fetch_file(d['path']))
+        d['preview_path'] = str(fetch_file(d['preview_path']))
+        out.append(d)
+    return out
+
+
 def _save_dataset(path: Path, filename: str, modality: str, extra_meta: Optional[Dict[str, Any]] = None):
     did = 'ds_' + uuid.uuid4().hex[:12]
     dest = UPLOADS / f'{did}{path.suffix.lower() or ".tif"}'
@@ -366,9 +369,12 @@ def _save_dataset(path: Path, filename: str, modality: str, extra_meta: Optional
     with db() as con:
         con.execute(
             'INSERT INTO datasets VALUES(?,?,?,?,?,?,?)',
-            (did, filename, str(dest), str(preview), modality, json.dumps(md), now()),
+            (did, filename, f'uploads/{did}{path.suffix.lower() or ".tif"}', f'previews/{did}.png', modality, json.dumps(md), now()),
         )
-    return get_dataset(did)
+    if remote_enabled():
+        put_file(f'uploads/{did}{path.suffix.lower() or ".tif"}', dest)
+        put_file(f'previews/{did}.png', preview)
+    return _materialize([get_dataset(did)])[0]
 
 
 def _auto_retrieve(aid: str, query_context: Dict[str, Any]) -> List[Any]:
@@ -405,7 +411,7 @@ def run_analysis(aid: str):
     row = get_analysis(aid)
     query = row['query']
     ids = json.loads(row['dataset_ids_json'] or '[]')
-    datasets = [get_dataset(x) for x in ids if get_dataset(x)]
+    datasets = _materialize([get_dataset(x) for x in ids if get_dataset(x)])
     try:
         update_analysis(aid, status='validating_input')
         query_context = parse_query(query, len(datasets))
@@ -691,6 +697,8 @@ def run_analysis(aid: str):
             'source_datasets': source_rows,
             'map_context': {'bounds_wgs84': map_bounds, 'location': location_name},
         }
+        if out.exists():
+            put_file(f'results/{aid}_overlay.png', out)
         update_analysis(aid, status='completed', result_json=json.dumps(final), completed_at=now())
         event(aid, 'response', 'Grounded response generated', 'Interactive map, overlay, statistics, warnings, source scenes and evidence are ready.')
     except Exception as exc:
@@ -799,7 +807,10 @@ async def upload_dataset(file: UploadFile = File(...), modality: str = Form('aut
         n = (file.filename or '').lower()
         inferred = 'sar' if 'sar' in n or 'sentinel-1' in n or 's1_' in n or md.get('count') == 2 else 'optical'
     with db() as con:
-        con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, file.filename, str(dest), str(preview), inferred, json.dumps(md), now()))
+        con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, file.filename, f'uploads/{did}{suffix}', f'previews/{did}.png', inferred, json.dumps(md), now()))
+    if remote_enabled():
+        put_file(f'uploads/{did}{suffix}', dest)
+        put_file(f'previews/{did}.png', preview)
     row = dataset_row(get_dataset(did))
     if row:
         try:
@@ -814,15 +825,17 @@ def dataset_preview(did: str):
     row = get_dataset(did)
     if not row:
         raise HTTPException(404, 'Dataset not found')
-    p = Path(row['preview_path'])
-    if not p.exists() and Path(row['path']).exists():
+    try:
+        p = fetch_file(row['preview_path'])
+    except FileNotFoundError:
         try:
+            src = fetch_file(row['path'])
+            p = DATA / row['preview_path']
             PREVIEWS.mkdir(parents=True, exist_ok=True)
-            make_preview(Path(row['path']), p)
+            make_preview(src, p)
+            put_file(row['preview_path'], p)
         except Exception:
-            pass
-    if not p.exists():
-        raise HTTPException(404, 'Preview image is not ready')
+            raise HTTPException(404, 'Preview image is not ready')
     return FileResponse(p, media_type='image/png')
 
 
@@ -832,7 +845,10 @@ def dataset_stats(did: str):
     if not row:
         raise HTTPException(404, 'Dataset not found')
     try:
-        return image_statistics(row['path'])
+        src = fetch_file(row['path'])
+        return image_statistics(str(src))
+    except FileNotFoundError:
+        raise HTTPException(404, 'Dataset not found')
     except Exception as exc:
         raise HTTPException(500, f'Could not compute statistics for {did}: {exc}')
 
@@ -842,8 +858,11 @@ def delete_dataset(did: str):
     row = get_dataset(did)
     if not row:
         raise HTTPException(404, 'Dataset not found')
-    Path(row['path']).unlink(missing_ok=True)
-    Path(row['preview_path']).unlink(missing_ok=True)
+    try:
+        delete_file(row['path'])
+        delete_file(row['preview_path'])
+    except Exception:
+        pass
     with db() as con:
         con.execute('DELETE FROM datasets WHERE id=?', (did,))
     return {'ok': True}
@@ -874,9 +893,11 @@ def create_analysis(inp: AnalysisIn):
     result['analysis_id'] = aid
     result['status'] = row['status']
     result['events'] = json.loads(row['events_json'] or '[]')
-    overlay = RESULTS / f'{aid}_overlay.png'
-    if overlay.exists():
+    try:
+        overlay = fetch_file(f'results/{aid}_overlay.png')
         result['overlay_b64'] = 'data:image/png;base64,' + base64.b64encode(overlay.read_bytes()).decode('ascii')
+    except FileNotFoundError:
+        pass
     return result
 
 
@@ -908,8 +929,9 @@ def analysis_result(aid: str):
 
 @app.get('/api/v1/analyses/{aid}/overlay')
 def analysis_overlay(aid: str):
-    p = RESULTS / f'{aid}_overlay.png'
-    if not p.exists():
+    try:
+        p = fetch_file(f'results/{aid}_overlay.png')
+    except FileNotFoundError:
         raise HTTPException(404, 'Overlay not ready')
     return FileResponse(p, media_type='image/png')
 
@@ -939,8 +961,11 @@ def load_demo():
     with db() as con:
         legacy = con.execute("SELECT * FROM datasets WHERE filename='Assam_S1_SAR_flood.tif'").fetchall()
         for r in legacy:
-            Path(r['path']).unlink(missing_ok=True)
-            Path(r['preview_path']).unlink(missing_ok=True)
+            try:
+                delete_file(r['path'])
+                delete_file(r['preview_path'])
+            except Exception:
+                pass
             con.execute('DELETE FROM datasets WHERE id=?', (r['id'],))
     samples = []
     for fname, mod, kind in DEMO_SPECS:
