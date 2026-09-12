@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { api, apiUrl, uploadDataset } from './api.js'
 import GeoEvidenceMap from './GeoEvidenceMap.jsx'
-import { Appear, MotionButton, Stagger, StaggerItem, gentle, motion } from './motion.jsx'
+import { AnimatePresence, Appear, MotionButton, Stagger, StaggerItem, gentle, motion } from './motion.jsx'
 
 const EXAMPLES = [
   {
