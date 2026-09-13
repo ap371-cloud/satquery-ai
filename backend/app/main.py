@@ -28,6 +28,8 @@ from .geo_tools import (
     image_statistics,
 )
 from .query_parser import parse_query
+from .agent_planner import build_plan
+from .processor import build_pipeline, execution_evidence
 from .satellite_catalog import retrieve_sentinel1_pair, resolve_location_online
 from .flood_model import model_status
 from .openearth_adapter import OpenEarthAdapter
@@ -74,9 +76,13 @@ def init_db():
         );
         CREATE TABLE IF NOT EXISTS analyses(
           id TEXT PRIMARY KEY, query TEXT, dataset_ids_json TEXT, status TEXT, intent TEXT,
-          provider TEXT, events_json TEXT, result_json TEXT, created_at TEXT, completed_at TEXT
+          provider TEXT, events_json TEXT, plan_json TEXT, result_json TEXT, created_at TEXT, completed_at TEXT
         );
         ''')
+        try:
+            con.execute('ALTER TABLE analyses ADD COLUMN plan_json TEXT')
+        except Exception:
+            pass
 
 
 init_db()
@@ -509,6 +515,20 @@ def run_analysis(aid: str):
         else:
             event(aid, 'validation', 'Input checked', f"{datasets[0]['filename']} is ready for analysis.")
 
+        plan = build_plan(query_context, datasets)
+        update_analysis(aid, plan_json=json.dumps(plan))
+        for st in plan.get('steps', []):
+            detail = st.get('purpose') or ''
+            if st.get('risk'):
+                detail = f"{detail} — risk: {st['risk']}"
+            event(aid, 'planner', f"Step {st['step']}: {st['title']}", detail, ('warning' if st.get('risk') else 'done'))
+        for pc in plan.get('preconditions', []):
+            if not pc.get('satisfied'):
+                event(aid, 'planner', 'Precondition not met', pc.get('detail'), 'warning')
+        pipeline = build_pipeline(query_context, datasets)
+        align = (pipeline.get('alignment') or {}).get('name') or 'not_applicable'
+        event(aid, 'planner', 'Pipeline providers selected', f"Water: {pipeline['intended_providers']['water']} · Change: {pipeline['intended_providers']['change']} · Vision: {pipeline['intended_providers']['vision']} · Alignment: {align}", 'done')
+
         update_analysis(aid, status='preprocessing')
         if intent == 'flood_detection':
             if query_context.get('preferred_sensor') == 'sar':
@@ -692,12 +712,18 @@ def run_analysis(aid: str):
             'model_info': result.get('model_info'),
             'legend': result.get('legend', []),
             'query_context': query_context,
+            'plan': plan,
+            'pipeline': pipeline,
             'geojson': result.get('geojson', {'type': 'FeatureCollection', 'features': []}),
             'overlay_url': f'/api/v1/analyses/{aid}/overlay',
             'geojson_url': f'/api/v1/analyses/{aid}/geojson',
             'source_datasets': source_rows,
             'map_context': {'bounds_wgs84': map_bounds, 'location': location_name},
         }
+        final['executed_tools'] = execution_evidence(plan, pipeline, result, intent)
+        exec_count = len(final['executed_tools'].get('executed') or [])
+        dev_count = len(final['executed_tools'].get('deviations') or [])
+        event(aid, 'evidence', 'Tool execution recorded', f"Planned {len(plan.get('tools') or [])} tool(s); executed {exec_count}. Fallback deviations: {dev_count}.", ('warning' if dev_count else 'done'))
         if out.exists():
             put_file(f'results/{aid}_overlay.png', out)
         update_analysis(aid, status='completed', result_json=json.dumps(final), completed_at=now())
@@ -762,6 +788,34 @@ def health():
 @app.post('/api/v1/query/parse')
 def query_parse(inp: QueryIn):
     return parse_query(inp.query, max(0, int(inp.dataset_count or 0)))
+
+
+class PlanIn(BaseModel):
+    query: str
+    dataset_ids: List[str] = []
+
+
+@app.post('/api/v1/plan')
+def plan_request(inp: PlanIn):
+    if not inp.query.strip():
+        raise HTTPException(400, 'Query is required')
+    ids = []
+    for did in inp.dataset_ids:
+        row = get_dataset(did)
+        if not row:
+            raise HTTPException(404, f'Dataset {did} is not available on this runtime instance.')
+        ids.append(row)
+    datasets = _materialize(ids)
+    context = parse_query(inp.query, len(datasets))
+    return {'query_context': context, 'plan': build_plan(context, datasets), 'pipeline': build_pipeline(context, datasets)}
+
+
+@app.get('/api/v1/tools')
+def tools_list():
+    from .tool_registry import all_tools, availability
+    from .flood_model import model_status as _ms
+
+    return {'tools': all_tools(), 'availability': availability(_ms())}
 
 
 @app.get('/api/v1/datasets')
@@ -883,8 +937,8 @@ def create_analysis(inp: AnalysisIn):
     aid = 'an_' + uuid.uuid4().hex[:12]
     with db() as con:
         con.execute(
-            'INSERT INTO analyses VALUES(?,?,?,?,?,?,?,?,?,?)',
-            (aid, inp.query, json.dumps(inp.dataset_ids), 'queued', None, inp.provider, '[]', None, now(), None),
+            'INSERT INTO analyses VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+            (aid, inp.query, json.dumps(inp.dataset_ids), 'queued', None, inp.provider, '[]', None, None, now(), None),
         )
     threading.Thread(target=run_analysis, args=(aid,), name=f'analysis-{aid}', daemon=True).start()
     return {'analysis_id': aid, 'status': 'queued', 'events': []}

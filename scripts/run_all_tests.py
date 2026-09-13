@@ -16,7 +16,7 @@ for path in python_files:
 print(f'PYTHON COMPILE PASS ({len(python_files)-1} files)')
 
 for script in ['test_natural_language.py', 'test_e2e_matrix.py',
-    'test_trust_contract.py', 'smoke_test.py']:
+    'test_trust_contract.py', 'test_agent_planning.py', 'smoke_test.py']:
     print(f'\n=== {script} ===')
     subprocess.run([sys.executable, str(ROOT / 'scripts' / script)], cwd=ROOT, check=True)
 

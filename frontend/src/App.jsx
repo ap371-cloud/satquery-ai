@@ -865,21 +865,65 @@ function ExecutionTrace({ status, result }) {
   )
 }
 
+function AgentPlanPanel({ result }) {
+  const plan = result?.plan || {}
+  const pipeline = result?.pipeline || {}
+  const exec = result?.executed_tools || {}
+  const steps = plan.steps || []
+  const providers = pipeline?.intended_providers || {}
+  return (
+    <div className="plan-panel">
+      {plan.unsupported ? (
+        <div className="plan-unsupported"><AlertTriangle size={18}/><b>This request is outside SatQuery's supported tool set.</b><p>{plan.unsupported_reason}</p></div>
+      ) : (
+        <>
+          <div className="plan-head"><div><b>Execution plan</b><span>Deterministic route: intent → retrieval → sensor routing → tool execution → evidence checks.</span></div><small>{steps.length} step{steps.length !== 1 ? 's' : ''} · {plan.aoi || (result?.map_context?.location || 'AOI')}</small></div>
+          {steps.length > 0 && <div className="plan-steps">{steps.map(st => (
+            <div className={`plan-step${st.risk ? ' risk' : ''}`} key={st.step}>
+              <span className="plan-step-index">{String(st.step).padStart(2, '0')}</span>
+              {st.risk ? <AlertTriangle className="plan-step-icon" size={15}/> : <CheckCircle2 className="plan-step-icon" size={15}/>}
+              <div className="plan-step-body"><b>{st.title}</b><p>{st.purpose}</p>
+                {st.tool && <span className="plan-tool">{st.tool}</span>}
+                {st.risk && <span className="plan-risk">{st.risk}</span>}
+              </div>
+            </div>
+          ))}</div>}
+          {Object.keys(providers).length > 0 && <div className="plan-providers">
+            <div className="plan-subhead"><Cpu size={14}/><b>Intended providers</b></div>
+            <div className="plan-provider-chips">{Object.entries(providers).map(([role, tool]) => <span key={role}><small>{role}</small>{tool}</span>)}</div>
+          </div>}
+          {exec.executed?.length > 0 && <div className="plan-providers">
+            <div className="plan-subhead"><Terminal size={14}/><b>Executed tools</b></div>
+            <div className="plan-provider-chips">{exec.executed.map((t, i) => <span key={i}><small>{t.model_backed ? 'model-backed' : 'deterministic'}</small>{t.tool}</span>)}</div>
+            {exec.deviations?.length > 0 && <div className="plan-deviations">{exec.deviations.map((d, i) => <span key={i}><AlertTriangle size={13}/>{d}</span>)}</div>}
+            {exec.note && <p className="plan-note">{exec.note}</p>}
+          </div>}
+          <div className="plan-foot"><ShieldCheck size={14}/> Every step is disclosed here and in the live trace; fallbacks are transparent, never silent.</div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function OutputPanel({ result, primary, running, _askedQuestion }) {
   const [tab, setTab] = useState('map')
   const src = result?.overlay_b64 || (result?.overlay_url ? apiUrl(result.overlay_url) : previewSrc(primary, null))
   const geojsonHref = result?.geojson ? 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(result.geojson)) : (result?.geojson_url ? apiUrl(result.geojson_url) : null)
   const mapReady = Boolean(result?.map_context?.bounds_wgs84)
+  const planReady = Boolean(result?.plan?.steps?.length)
   useEffect(() => { if (!mapReady && tab === 'map') setTab('image') }, [mapReady, tab])
   return (
     <div className={`output-panel-wrap${running ? ' running' : ''}`}>
       <div className="output-tabs">
         <MotionButton className={tab === 'map' ? 'active' : ''} disabled={!mapReady} onClick={() => setTab('map')}><MapIcon size={14}/> Interactive Map</MotionButton>
         <MotionButton className={tab === 'image' ? 'active' : ''} onClick={() => setTab('image')}><ImageIcon size={14}/> Evidence Image</MotionButton>
+        {planReady && <MotionButton className={tab === 'plan' ? 'active' : ''} onClick={() => setTab('plan')}><Sparkles size={14}/> Agent Plan</MotionButton>}
       </div>
       <div className="output-image-box">
         {tab === 'map' && result ? <GeoEvidenceMap result={result}/> : (
-          src ? <motion.img key={src} initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease: gentle }} src={src} alt="Analysis output"/> : <div className="output-empty"><ImageIcon size={34}/><b>Geospatial output</b><span>Map and annotated evidence will appear here after analysis.</span></div>
+          tab === 'plan' ? <AgentPlanPanel result={result}/> : (
+            src ? <motion.img key={src} initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease: gentle }} src={src} alt="Analysis output"/> : <div className="output-empty"><ImageIcon size={34}/><b>Geospatial output</b><span>Map and annotated evidence will appear here after analysis.</span></div>
+          )
         )}
         {(result?.overlay_b64 || result?.overlay_url) && (
           <div className="output-actions">

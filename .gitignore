@@ -67,3 +67,4 @@ pytest_cache/
 *.coverage
 
 .vercel
+.env*
