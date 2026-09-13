@@ -373,6 +373,7 @@ def change_detection(first_path: str | Path, second_path: str | Path, out_path: 
     confidence = min(0.90, 0.55 + min(signal / 255.0, 0.28) + (0.07 if meta.get('crs') else 0))
     return {
         'overlay_path': str(out_path), 'geojson': geojson,
+        'geojson_layers': {'change': geojson},
         'statistics': {'change_percent': round(pct, 2), 'changed_area_km2': round(area_m2/1e6, 4) if area_m2 else None},
         'confidence': round(confidence, 3), 'confidence_type': 'operational_heuristic',
         'warnings': warnings + ['Change detector is a deterministic aligned image-difference baseline; production accuracy should use a trained change model.'],
@@ -450,6 +451,7 @@ def flood_detection(path: str | Path, out_path: str | Path, modality: str = 'aut
     confidence = 0.88 if model_info.get('model_backed') else (0.72 if sar else 0.58)
     return {
         'overlay_path': str(out_path), 'geojson': geojson,
+        'geojson_layers': {'water_or_flood': geojson},
         'statistics': {'water_or_flood_percent': round(pct, 2), 'affected_area_km2': round(area_m2/1e6, 4) if area_m2 else None},
         'confidence': confidence, 'confidence_type': 'model_assisted' if model_info.get('model_backed') else 'operational_heuristic',
         'warnings': warnings,
@@ -481,8 +483,8 @@ def temporal_flood_detection(before_path: str | Path, after_path: str | Path, ou
     Image.fromarray(overlay).save(out_path)
 
     geojson, flood_area = _mask_geojson(probable_new, meta, properties={'class': 'probable_new_inundation'})
-    _, persistent_area = _mask_geojson(persistent, meta, properties={'class': 'persistent_water'})
-    _, receded_area = _mask_geojson(receded, meta, properties={'class': 'receded_water'})
+    persistent_geojson, persistent_area = _mask_geojson(persistent, meta, properties={'class': 'persistent_water'})
+    receded_geojson, receded_area = _mask_geojson(receded, meta, properties={'class': 'receded_water'})
     if flood_area is None: flood_area = _pixel_area_estimate(probable_new, meta)
     if persistent_area is None: persistent_area = _pixel_area_estimate(persistent, meta)
     if receded_area is None: receded_area = _pixel_area_estimate(receded, meta)
@@ -501,6 +503,11 @@ def temporal_flood_detection(before_path: str | Path, after_path: str | Path, ou
     }
     return {
         'overlay_path': str(out_path), 'geojson': geojson, 'statistics': stats,
+        'geojson_layers': {
+            'probable_new_inundation': geojson,
+            'persistent_water': persistent_geojson,
+            'receded_water': receded_geojson,
+        },
         'confidence': confidence, 'confidence_type': 'model_assisted_temporal' if model_backed else 'operational_temporal',
         'warnings': warnings,
         'method': 'temporal_sar_water_change_with_persistent_water_suppression',
@@ -544,6 +551,7 @@ def vegetation_change(first_path: str | Path, second_path: str | Path, out_path:
     confidence = min(0.88, 0.58 + (0.12 if ma.startswith('NDVI') and mb.startswith('NDVI') else 0) + (0.07 if meta.get('crs') else 0))
     return {
         'overlay_path': str(out_path), 'geojson': geojson,
+        'geojson_layers': {'vegetation_loss': geojson},
         'statistics': {'vegetation_loss_percent': round(pct,2), 'loss_area_km2': round(area_m2/1e6,4) if area_m2 else None},
         'confidence': round(confidence,3), 'confidence_type': 'operational_heuristic',
         'warnings': warnings + ([] if ma.startswith('NDVI') else ['RGB fallback vegetation index used because NIR band was unavailable.']),
