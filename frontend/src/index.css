@@ -46,7 +46,12 @@ button{cursor:pointer}
 a{color:inherit}
 ::selection{background:#dcd4ff}
 
-.page-shell{max-width:1500px;margin:0 auto;padding:20px 28px 44px;position:relative}
+.earth-hologram{position:fixed;inset:0;z-index:0;pointer-events:none}
+.earth-hologram canvas{opacity:.9;filter:drop-shadow(0 0 30px rgba(79,140,240,.4))}
+.earth-hologram.is-loaded canvas{opacity:1}
+@media(max-width:1100px){.earth-hologram canvas{transform:translateY(-8px)}}
+
+.page-shell{max-width:1500px;margin:0 auto;padding:20px 28px 44px;position:relative;z-index:1}
 .top-utility{height:38px;display:flex;justify-content:flex-end;align-items:center;gap:8px;position:relative;z-index:5}
 .runtime-health,.utility-button{height:32px;border:1px solid var(--border);background:rgba(255,255,255,.85);backdrop-filter:blur(6px);border-radius:10px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;font-size:12px;color:#45536b;box-shadow:var(--shadow-1)}
 .utility-button:hover{background:#fff;border-color:#c9d3e0;transform:translateY(-1px)}

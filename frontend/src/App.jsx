@@ -8,6 +8,7 @@ import {
 import { api, apiUrl, uploadDataset } from './api.js'
 import GeoEvidenceMap from './GeoEvidenceMap.jsx'
 import { AnimatePresence, Appear, MotionButton, Stagger, StaggerItem, gentle, motion } from './motion.jsx'
+import EarthHologram from './EarthHologram.jsx'
 
 const EXAMPLES = [
   {
@@ -597,6 +598,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <EarthHologram/>
       <div className="page-shell">
       <div className="top-utility">
         <StatusBadge health={health}/>
