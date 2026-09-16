@@ -15,10 +15,10 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import rasterio
 from rasterio.transform import from_origin
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .geo_tools import (
     make_preview, read_raster, compatibility,
@@ -41,6 +41,14 @@ from .demo_data import (
     _write_optical_demo,
     period_label_for,
 )
+from .security import (
+    MAX_QUERY_LEN, MAX_DATASET_IDS, MAX_PLAN_DATASETS,
+    PIXEL_SAFETY_LIMIT,
+    ALLOWED_PROVIDERS, ALLOWED_MODALITIES,
+    validate_magic_bytes, sanitize_filename, safe_error,
+    sanitize_health, enforce_rate_limit,
+    SecurityHeadersMiddleware,
+)
 
 BASE = Path(__file__).resolve().parents[1]
 BAKED = Path(os.getenv('SATQUERY_BAKED_DIR', str(BASE / 'data' / 'baked')))
@@ -59,8 +67,16 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 oea = OpenEarthAdapter()
 specialists = SpecialistRegistry()
+
+
+def _rl(scope: str):
+    """FastAPI dependency that enforces the configured rate limit for a scope."""
+    def _check(request: Request):
+        enforce_rate_limit(request, scope)
+    return _check
 
 
 def now():
@@ -729,23 +745,26 @@ def run_analysis(aid: str):
         update_analysis(aid, status='completed', result_json=json.dumps(final), completed_at=now())
         event(aid, 'response', 'Grounded response generated', 'Interactive map, overlay, statistics, warnings, source scenes and evidence are ready.')
     except Exception as exc:
-        event(aid, 'error', 'Analysis failed', str(exc), 'error')
-        update_analysis(aid, status='failed', result_json=json.dumps({'error': str(exc)}), completed_at=now())
+        safe_msg = safe_error(exc, 'analysis')
+        event(aid, 'error', 'Analysis failed', safe_msg, 'error')
+        update_analysis(aid, status='failed', result_json=json.dumps({'error': safe_msg}), completed_at=now())
 
 
 class AnalysisIn(BaseModel):
-    query: str
-    dataset_ids: List[str] = []
+    query: str = Field(..., max_length=MAX_QUERY_LEN)
+    dataset_ids: List[str] = Field(default=[], max_length=MAX_DATASET_IDS)
     provider: str = 'auto'
 
 
 class QueryIn(BaseModel):
-    query: str
-    dataset_count: int = 0
+    query: str = Field(..., max_length=MAX_QUERY_LEN)
+    dataset_count: int = Field(default=0, ge=0, le=MAX_DATASET_IDS)
 
 
 @app.get('/api/v1/ai/free-test')
 def ai_free_test():
+    if os.getenv('SATQUERY_DEBUG', '').strip().lower() not in ('1', 'true', 'yes'):
+        raise HTTPException(404, 'Not found')
     from .local_vlm import LocalCLIPAdapter as LocalAIAdapter
     fa = LocalAIAdapter()
     files = []
@@ -782,20 +801,20 @@ def health():
         florence = None
     body = {'status': 'ok', 'time': now(), 'agent_bridge': oea.health(), 'flood_model': model_status(), 'specialists': specialists.health()}
     body['onboard_ai'] = florence
-    return body
+    return sanitize_health(body)
 
 
-@app.post('/api/v1/query/parse')
+@app.post('/api/v1/query/parse', dependencies=[Depends(_rl('parse'))])
 def query_parse(inp: QueryIn):
     return parse_query(inp.query, max(0, int(inp.dataset_count or 0)))
 
 
 class PlanIn(BaseModel):
-    query: str
-    dataset_ids: List[str] = []
+    query: str = Field(..., max_length=MAX_QUERY_LEN)
+    dataset_ids: List[str] = Field(default=[], max_length=MAX_PLAN_DATASETS)
 
 
-@app.post('/api/v1/plan')
+@app.post('/api/v1/plan', dependencies=[Depends(_rl('plan'))])
 def plan_request(inp: PlanIn):
     if not inp.query.strip():
         raise HTTPException(400, 'Query is required')
@@ -825,8 +844,10 @@ def list_datasets():
     return [dataset_row(x) for x in rows]
 
 
-@app.post('/api/v1/datasets')
+@app.post('/api/v1/datasets', dependencies=[Depends(_rl('upload'))])
 async def upload_dataset(file: UploadFile = File(...), modality: str = Form('auto')):
+    if modality not in ALLOWED_MODALITIES:
+        raise HTTPException(422, f"Unknown modality '{modality}'.")
     suffix = Path(file.filename or '').suffix.lower()
     if suffix not in ALLOWED:
         raise HTTPException(400, 'Unsupported file type.')
@@ -844,9 +865,12 @@ async def upload_dataset(file: UploadFile = File(...), modality: str = Form('aut
                 dest.unlink(missing_ok=True)
                 raise HTTPException(413, 'File too large.')
             f.write(chunk)
+    if not validate_magic_bytes(dest, suffix):
+        dest.unlink(missing_ok=True)
+        raise HTTPException(400, 'File content does not match the expected format.')
     try:
         raster = read_raster(dest)
-        if raster['meta']['width'] * raster['meta']['height'] > 120_000_000:
+        if raster['meta']['width'] * raster['meta']['height'] > PIXEL_SAFETY_LIMIT:
             dest.unlink(missing_ok=True)
             raise HTTPException(413, 'Raster pixel count exceeds safety limit.')
         preview = PREVIEWS / f'{did}.png'
@@ -854,15 +878,16 @@ async def upload_dataset(file: UploadFile = File(...), modality: str = Form('aut
         md = raster['meta']
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         dest.unlink(missing_ok=True)
-        raise HTTPException(400, f'Could not read image/raster: {exc}')
+        raise HTTPException(400, 'Could not read the uploaded image as a valid raster.')
+    safe_name = sanitize_filename(file.filename or f'upload{suffix}')
     inferred = modality
     if modality == 'auto':
         n = (file.filename or '').lower()
         inferred = 'sar' if 'sar' in n or 'sentinel-1' in n or 's1_' in n or md.get('count') == 2 else 'optical'
     with db() as con:
-        con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, file.filename, f'uploads/{did}{suffix}', f'previews/{did}.png', inferred, json.dumps(md), now()))
+        con.execute('INSERT INTO datasets VALUES(?,?,?,?,?,?,?)', (did, safe_name, f'uploads/{did}{suffix}', f'previews/{did}.png', inferred, json.dumps(md), now()))
     if remote_enabled():
         put_file(f'uploads/{did}{suffix}', dest)
         put_file(f'previews/{did}.png', preview)
@@ -894,7 +919,7 @@ def dataset_preview(did: str):
     return FileResponse(p, media_type='image/png')
 
 
-@app.get('/api/v1/datasets/{did}/stats')
+@app.get('/api/v1/datasets/{did}/stats', dependencies=[Depends(_rl('stats'))])
 def dataset_stats(did: str):
     row = get_dataset(did)
     if not row:
@@ -904,8 +929,8 @@ def dataset_stats(did: str):
         return image_statistics(str(src))
     except FileNotFoundError:
         raise HTTPException(404, 'Dataset not found')
-    except Exception as exc:
-        raise HTTPException(500, f'Could not compute statistics for {did}: {exc}')
+    except Exception:
+        raise HTTPException(500, 'Could not compute statistics for this dataset.')
 
 
 @app.delete('/api/v1/datasets/{did}')
@@ -923,8 +948,10 @@ def delete_dataset(did: str):
     return {'ok': True}
 
 
-@app.post('/api/v1/analyses')
+@app.post('/api/v1/analyses', dependencies=[Depends(_rl('analyses'))])
 def create_analysis(inp: AnalysisIn):
+    if inp.provider not in ALLOWED_PROVIDERS:
+        raise HTTPException(422, f"Unknown provider '{inp.provider}'.")
     if not inp.query.strip():
         raise HTTPException(400, 'Query is required')
     for did in inp.dataset_ids:
@@ -998,7 +1025,7 @@ def list_analyses():
     ]
 
 
-@app.post('/api/v1/demo/load')
+@app.post('/api/v1/demo/load', dependencies=[Depends(_rl('demo_load'))])
 def load_demo():
     # Remove the old incorrectly geolocated Assam sample if it exists.
     with db() as con:

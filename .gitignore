@@ -68,3 +68,4 @@ pytest_cache/
 
 .vercel
 .env*
+!.env.example

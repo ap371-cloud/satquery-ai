@@ -12,6 +12,7 @@ import requests
 from PIL import Image
 
 from .geo_tools import make_preview
+from .security import GEMINI_SYSTEM_INSTRUCTION
 
 _BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -92,6 +93,7 @@ class GeminiVisionAdapter:
         parts.append({"text": query})
         payload = {
             "contents": [{"role": "user", "parts": parts}],
+            "systemInstruction": {"parts": [{"text": GEMINI_SYSTEM_INSTRUCTION}]},
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1200},
         }
         t0 = time.time()
