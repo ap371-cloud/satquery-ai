@@ -432,7 +432,17 @@ function App() {
     }
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const ds = await refresh(true)
+      if (cancelled) return
+      if (!ds.length) { await loadDemo(); return }
+      setPrimaryId(prev => prev || ds[0].id)
+      if (ds[1]) setCompareId(prev => prev || ds[1].id)
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     if (!query.trim()) { setQueryContext(null); return undefined }
@@ -523,7 +533,7 @@ function App() {
   async function run(q = query, ids = selectedIds) {
     const trimmed = (q || '').trim()
     if (!trimmed) return setError('Enter a question first.')
-    if (!ids.length && !canRunWithoutUpload) return setError('Upload/select imagery, or use a query with a supported location and date range for automatic Sentinel retrieval.')
+    if (!ids.length && !canRunWithoutUpload) return setError('No imagery selected. Choose a satellite image from the library, upload one, or ask with a location + date (e.g. "show flooded areas around Assam between July and August 2025").')
     const seq = ++runSeq.current
     setAskedQuestion(trimmed)
     setError('')
@@ -643,6 +653,12 @@ function App() {
             placeholder="Example: Show flooded areas around Assam between July and August 2025."
             value={query}
             onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                run()
+              }
+            }}
           />
           <QueryContext context={queryContext}/>
           <ImageSuggestions primary={primary} compare={compare} run={run} setQuery={setQuery}/>
