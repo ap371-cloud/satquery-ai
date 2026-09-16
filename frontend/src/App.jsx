@@ -530,10 +530,29 @@ function App() {
     } catch (e) { setError(e.message) }
   }
 
+  async function ensureImageryOverride() {
+    let ds = datasets
+    if (!ds.length) ds = await refresh(true)
+    if (!ds.length) {
+      await api('/api/v1/demo/load', { method: 'POST' })
+      ds = await refresh(true)
+    }
+    const pick = ds.slice(0, 2).map(x => x.id)
+    if (pick.length) {
+      setPrimaryId(pick[0])
+      if (pick[1]) setCompareId(pick[1])
+    }
+    return pick
+  }
+
   async function run(q = query, ids = selectedIds) {
     const trimmed = (q || '').trim()
     if (!trimmed) return setError('Enter a question first.')
-    if (!ids.length && !canRunWithoutUpload) return setError('No imagery selected. Choose a satellite image from the library, upload one, or ask with a location + date (e.g. "show flooded areas around Assam between July and August 2025").')
+    if (!ids.length && !canRunWithoutUpload) {
+      const auto = await ensureImageryOverride()
+      if (!auto.length) return setError('No imagery selected. Choose a satellite image from the library, upload one, or ask with a location + date (e.g. "show flooded areas around Assam between July and August 2025").')
+      ids = auto
+    }
     const seq = ++runSeq.current
     setAskedQuestion(trimmed)
     setError('')
